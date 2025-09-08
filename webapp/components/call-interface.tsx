@@ -6,6 +6,7 @@ import ChecklistAndConfig from "@/components/checklist-and-config";
 import SessionConfigurationPanel from "@/components/session-configuration-panel";
 import Transcript from "@/components/transcript";
 import FunctionCallsPanel from "@/components/function-calls-panel";
+import VoiceChat from "@/components/voice-chat";
 import { Item } from "@/components/types";
 import handleRealtimeEvent from "@/lib/handle-realtime-event";
 import PhoneNumberChecklist from "@/components/phone-number-checklist";
@@ -54,7 +55,7 @@ const CallInterface = () => {
       <div className="flex-grow p-4 h-full overflow-hidden flex flex-col">
         <div className="grid grid-cols-12 gap-4 h-full">
           {/* Left Column */}
-          <div className="col-span-3 flex flex-col h-full overflow-hidden">
+          <div className="col-span-3 flex flex-col h-full overflow-hidden space-y-4">
             <SessionConfigurationPanel
               callStatus={callStatus}
               onSave={async (config) => {
@@ -141,6 +142,21 @@ const CallInterface = () => {
                   }
                   throw error; // Re-throw to let the component handle the error state
                 }
+              }}
+            />
+            
+            <VoiceChat 
+              onTranscript={(text, isUser) => {
+                // Add voice transcripts to the items list
+                const newItem: Item = {
+                  id: `voice-${Date.now()}`,
+                  object: "realtime.item",
+                  type: "message",
+                  role: isUser ? "user" : "assistant",
+                  content: [{ type: "text", text: text }],
+                  timestamp: new Date().toISOString()
+                };
+                setItems(prev => [...prev, newItem]);
               }}
             />
           </div>

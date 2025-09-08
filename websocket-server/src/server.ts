@@ -9,6 +9,7 @@ import cors from "cors";
 import {
   handleCallConnection,
   handleFrontendConnection,
+  handleVoiceChatConnection,
 } from "./sessionManager";
 import functions from "./functionHandlers";
 import { testConnection } from "./db";
@@ -54,6 +55,7 @@ app.get("/tools", (req, res) => {
 
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
+let currentVoiceChat: WebSocket | null = null;
 
 wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   const url = new URL(req.url || "", `http://${req.headers.host}`);
@@ -74,6 +76,10 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     if (currentLogs) currentLogs.close();
     currentLogs = ws;
     handleFrontendConnection(currentLogs);
+  } else if (type === "voice-chat") {
+    if (currentVoiceChat) currentVoiceChat.close();
+    currentVoiceChat = ws;
+    handleVoiceChatConnection(currentVoiceChat, OPENAI_API_KEY);
   } else {
     ws.close();
   }
