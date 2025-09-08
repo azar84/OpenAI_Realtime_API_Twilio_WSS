@@ -1,109 +1,305 @@
-# OpenAI Realtime API with Twilio Quickstart
+# OpenAI Realtime API + Twilio Voice Integration
 
-Combine OpenAI's Realtime API and Twilio's phone calling capability to build an AI calling assistant.
+A complete implementation of OpenAI's Realtime API integrated with Twilio Voice for phone-based AI conversations with custom tool calling capabilities.
 
-<img width="1728" alt="Screenshot 2024-12-18 at 4 59 30 PM" src="https://github.com/user-attachments/assets/d3c8dcce-b339-410c-85ca-864a8e0fc326" />
+## 🚀 Features
 
-## Quick Setup
+- **Real-time voice conversations** with OpenAI's GPT-4o Realtime model
+- **Twilio Voice integration** for phone calls
+- **Custom tool calling** with n8n workflow integration
+- **Automated service orchestration** with startup scripts
+- **WebSocket-based architecture** for low-latency communication
+- **Audio format optimization** for Twilio (G.711 μ-law)
 
-Open three terminal windows:
+## 🏗️ Architecture
 
-| Terminal | Purpose                       | Quick Reference (see below for more) |
-| -------- | ----------------------------- | ------------------------------------ |
-| 1        | To run the `webapp`           | `npm run dev`                        |
-| 2        | To run the `websocket-server` | `npm run dev`                        |
-| 3        | To run `ngrok`                | `ngrok http 8081`                    |
-
-Make sure all vars in `webapp/.env` and `websocket-server/.env` are set correctly. See [full setup](#full-setup) section for more.
-
-## Overview
-
-This repo implements a phone calling assistant with the Realtime API and Twilio, and had two main parts: the `webapp`, and the `websocket-server`.
-
-1. `webapp`: NextJS app to serve as a frontend for call configuration and transcripts
-2. `websocket-server`: Express backend that handles connection from Twilio, connects it to the Realtime API, and forwards messages to the frontend
-<img width="1514" alt="Screenshot 2024-12-20 at 10 32 40 AM" src="https://github.com/user-attachments/assets/61d39b88-4861-4b6f-bfe2-796957ab5476" />
-
-Twilio uses TwiML (a form of XML) to specify how to handle a phone call. When a call comes in we tell Twilio to start a bi-directional stream to our backend, where we forward messages between the call and the Realtime API. (`{{WS_URL}}` is replaced with our websocket endpoint.)
-
-```xml
-<!-- TwiML to start a bi-directional stream-->
-
-<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say>Connected</Say>
-  <Connect>
-    <Stream url="{{WS_URL}}" />
-  </Connect>
-  <Say>Disconnected</Say>
-</Response>
+```
+Phone Call → Twilio → WebSocket Server → OpenAI Realtime API
+                  ↕                    ↕
+              Web Interface ←→ Custom Tools (n8n)
 ```
 
-We use `ngrok` to make our server reachable by Twilio.
+## 📋 Prerequisites
 
-### Life of a phone call
+- **Node.js** (v18 or higher)
+- **OpenAI API key** with Realtime API access
+- **Twilio account** with phone number
+- **ngrok** (for local development)
+- **n8n instance** (optional, for custom tools)
 
-Setup
+## ⚡ Quick Start
 
-1. We run ngrok to make our server reachable by Twilio
-1. We set the Twilio webhook to our ngrok address
-1. Frontend connects to the backend (`wss://[your_backend]/logs`), ready for a call
+### 1. Clone and Setup
 
-Call
-
-1. Call is placed to Twilio-managed number
-1. Twilio queries the webhook (`http://[your_backend]/twiml`) for TwiML instructions
-1. Twilio opens a bi-directional stream to the backend (`wss://[your_backend]/call`)
-1. The backend connects to the Realtime API, and starts forwarding messages:
-   - between Twilio and the Realtime API
-   - between the frontend and the Realtime API
-
-### Function Calling
-
-This demo mocks out function calls so you can provide sample responses. In reality you could handle the function call, execute some code, and then supply the response back to the model.
-
-## Full Setup
-
-1. Make sure your [auth & env](#detailed-auth--env) is configured correctly.
-
-2. Run webapp.
-
-```shell
-cd webapp
-npm install
-npm run dev
+```bash
+git clone https://github.com/yourusername/OpenAI_Realtime_API_Twilio_WSS.git
+cd OpenAI_Realtime_API_Twilio_WSS
 ```
 
-3. Run websocket server.
+### 2. Install Dependencies
 
-```shell
+```bash
+# Install WebSocket server dependencies
 cd websocket-server
 npm install
+
+# Install webapp dependencies  
+cd ../webapp
+npm install
+```
+
+### 3. Configure Environment Variables
+
+**WebSocket Server** (`websocket-server/.env`):
+```bash
+cp .env.example .env
+# Edit .env with your values:
+OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+PORT=8081
+# Other variables will be set automatically by startup scripts
+```
+
+**Web App** (`webapp/.env`):
+```bash
+cp .env.example .env
+# Most variables are set automatically by startup scripts
+```
+
+### 4. Start All Services (Automated)
+
+```bash
+cd webapp
+./start-all.sh
+```
+
+This script will:
+- ✅ Start WebSocket server on port 8081
+- ✅ Start ngrok tunnel and get public URL
+- ✅ Update environment variables automatically
+- ✅ Restart services to load new config
+- ✅ Start Next.js webapp on port 3000
+
+### 5. Configure Twilio Webhook
+
+1. Go to [Twilio Console → Phone Numbers](https://console.twilio.com/us1/develop/phone-numbers/manage/incoming)
+2. Click your phone number
+3. Set **Voice webhook URL** to: `https://your-ngrok-url.ngrok-free.app/twiml`
+4. Set HTTP method to **POST**
+5. Save configuration
+
+### 6. Test the System
+
+- **Call your Twilio number** → Should hear "Connected"
+- **Speak to the AI** → Should get intelligent responses
+- **Ask for weather** → AI will call the weather tool
+- **Ask about customers** → AI will call the n8n tool (if configured)
+
+## 🛠️ Available Tools
+
+### Built-in Tools
+
+1. **Weather Tool** (`get_weather_from_coords`)
+   - Get current weather by coordinates
+   - Uses Open-Meteo API
+
+### Custom Tools (n8n Integration)
+
+2. **Customer Lookup** (`lookup_customer`)
+   - Find customer information by phone number
+   - Integrates with n8n workflow
+   - Configure `N8N_TOOL_URL` and `N8N_SECRET` in `.env`
+
+## 📁 Project Structure
+
+```
+├── websocket-server/          # Backend WebSocket server
+│   ├── src/
+│   │   ├── server.ts         # Main server file
+│   │   ├── sessionManager.ts # OpenAI Realtime session handling
+│   │   ├── functionHandlers.ts # Custom tool definitions
+│   │   └── types.ts          # TypeScript interfaces
+│   ├── .env.example          # Environment template
+│   └── package.json
+│
+├── webapp/                   # Next.js frontend
+│   ├── app/                  # Next.js 13+ app directory
+│   ├── components/           # React components
+│   ├── lib/                  # Utility functions
+│   ├── start-all.sh         # 🚀 Main startup script
+│   ├── start-simple.js      # Node.js alternative
+│   ├── stop-all.sh          # Shutdown script
+│   ├── .env.example         # Environment template
+│   └── package.json
+│
+├── README.md                 # This file
+└── .gitignore               # Git ignore rules
+```
+
+## 🔧 Manual Setup (Alternative)
+
+If you prefer manual setup instead of the automated scripts:
+
+### 1. Start WebSocket Server
+```bash
+cd websocket-server
 npm run dev
 ```
 
-## Detailed Auth & Env
-
-### OpenAI & Twilio
-
-Set your credentials in `webapp/.env` and `websocket-server` - see `webapp/.env.example` and `websocket-server.env.example` for reference.
-
-### Ngrok
-
-Twilio needs to be able to reach your websocket server. If you're running it locally, your ports are inaccessible by default. [ngrok](https://ngrok.com/) can make them temporarily accessible.
-
-We have set the `websocket-server` to run on port `8081` by default, so that is the port we will be forwarding.
-
-```shell
+### 2. Start ngrok
+```bash
 ngrok http 8081
+# Copy the https URL
 ```
 
-Make note of the `Forwarding` URL. (e.g. `https://54c5-35-170-32-42.ngrok-free.app`)
+### 3. Update Environment
+```bash
+# In websocket-server/.env
+PUBLIC_URL=https://your-ngrok-url.ngrok-free.app
+```
 
-### Websocket URL
+### 4. Restart WebSocket Server
+```bash
+# Restart to load new PUBLIC_URL
+cd websocket-server
+npm run dev
+```
 
-Your server should now be accessible at the `Forwarding` URL when run, so set the `PUBLIC_URL` in `websocket-server/.env`. See `websocket-server/.env.example` for reference.
+### 5. Start Web App
+```bash
+cd webapp
+npm run dev
+```
 
-# Additional Notes
+## 🎛️ Configuration Options
 
-This repo isn't polished, and the security practices leave some to be desired. Please only use this as reference, and make sure to audit your app with security and engineering before deploying!
+### OpenAI Realtime API Settings
+
+The system is configured for optimal Twilio integration:
+
+- **Model**: `gpt-4o-realtime-preview-2024-12-17`
+- **Voice**: `ash`
+- **Audio Format**: `g711_ulaw` (Twilio compatible)
+- **Turn Detection**: Server-side VAD (Voice Activity Detection)
+- **Tools**: Enabled with custom function calling
+
+### Audio Configuration
+
+- **Input**: G.711 μ-law (from Twilio)
+- **Output**: G.711 μ-law (to Twilio)
+- **Sample Rate**: 8kHz
+- **Channels**: Mono
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **"Connected" but no AI response**
+   - Check OpenAI API key is valid
+   - Verify WebSocket server logs for connection errors
+   - Ensure PUBLIC_URL is set correctly
+
+2. **Compilation errors**
+   - Check Node.js version (v18+ required)
+   - Run `npm install` in both directories
+   - Verify TypeScript configuration
+
+3. **Twilio webhook errors**
+   - Verify webhook URL is correct ngrok URL + `/twiml`
+   - Check ngrok is running and tunnel is active
+   - Ensure WebSocket server is accessible
+
+4. **Audio issues (noise/distortion)**
+   - Audio format is optimized for G.711 μ-law
+   - Check network connectivity
+   - Verify Twilio account configuration
+
+### Debug Mode
+
+Enable detailed logging:
+
+```bash
+# In websocket-server/.env
+DEBUG=true
+NODE_ENV=development
+```
+
+## 🧪 Development
+
+### Adding Custom Tools
+
+1. **Define tool schema** in `websocket-server/src/functionHandlers.ts`:
+
+```typescript
+functions.push({
+  schema: {
+    name: "your_tool_name",
+    type: "function",
+    description: "What your tool does",
+    parameters: {
+      type: "object",
+      properties: {
+        param1: { type: "string", description: "Parameter description" }
+      },
+      required: ["param1"]
+    }
+  },
+  handler: async (args: { param1: string }) => {
+    // Your tool logic here
+    return JSON.stringify({ result: "success" });
+  }
+});
+```
+
+2. **Restart the server** to load new tools
+
+### Testing Tools
+
+Test tools directly via HTTP:
+
+```bash
+curl http://localhost:8081/tools
+# Should show all available tools
+```
+
+## 📚 API Reference
+
+### WebSocket Server Endpoints
+
+- `GET /tools` - List available tools
+- `GET /public-url` - Get current public URL
+- `POST /twiml` - Twilio webhook endpoint
+- `WS /call` - Twilio WebSocket connection
+- `WS /logs` - Frontend logging connection
+
+### Environment Variables
+
+See `.env.example` files for complete reference.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+## 🆘 Support
+
+- **Issues**: GitHub Issues
+- **Documentation**: This README
+- **Examples**: See `webapp/` directory
+
+## 🎉 Acknowledgments
+
+- **OpenAI** for the Realtime API
+- **Twilio** for voice infrastructure
+- **n8n** for workflow automation
+- **Next.js** for the web interface
+
+---
+
+**Ready to build amazing voice AI experiences!** 🚀🎤🤖
