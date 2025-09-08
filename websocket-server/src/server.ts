@@ -11,6 +11,7 @@ import {
   handleFrontendConnection,
 } from "./sessionManager";
 import functions from "./functionHandlers";
+import { testConnection } from "./db";
 
 dotenv.config();
 
@@ -78,6 +79,9 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  
+  // Test database connection
+  await testConnection();
 });

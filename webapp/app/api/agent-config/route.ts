@@ -1,0 +1,157 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { AgentConfigDB, testConnection } from '@/lib/db';
+
+// GET /api/agent-config - Get all configurations or active configuration
+export async function GET(request: NextRequest) {
+  try {
+    // Test database connection
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const active = searchParams.get('active');
+    const id = searchParams.get('id');
+
+    let result;
+    if (id) {
+      result = await AgentConfigDB.getById(parseInt(id));
+      if (!result) {
+        return NextResponse.json(
+          { error: 'Configuration not found' },
+          { status: 404 }
+        );
+      }
+    } else if (active === 'true') {
+      result = await AgentConfigDB.getActive();
+      if (!result) {
+        return NextResponse.json(
+          { error: 'No active configuration found' },
+          { status: 404 }
+        );
+      }
+    } else {
+      result = await AgentConfigDB.getAll();
+    }
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Error fetching agent configurations:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/agent-config - Create new configuration
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    
+    // Validate required fields
+    if (!body.name || !body.instructions || !body.voice) {
+      return NextResponse.json(
+        { error: 'Missing required fields: name, instructions, voice' },
+        { status: 400 }
+      );
+    }
+
+    // Set defaults for missing fields
+    const config = {
+      name: body.name,
+      instructions: body.instructions,
+      voice: body.voice || 'ash',
+      model: body.model || 'gpt-4o-realtime-preview-2024-12-17',
+      temperature: body.temperature || 0.8,
+      max_tokens: body.max_tokens || null,
+      input_audio_format: body.input_audio_format || 'g711_ulaw',
+      output_audio_format: body.output_audio_format || 'g711_ulaw',
+      turn_detection_type: body.turn_detection_type || 'server_vad',
+      turn_detection_threshold: body.turn_detection_threshold || 0.5,
+      turn_detection_prefix_padding_ms: body.turn_detection_prefix_padding_ms || 300,
+      turn_detection_silence_duration_ms: body.turn_detection_silence_duration_ms || 200,
+      modalities: body.modalities || ['text', 'audio'],
+      tools_enabled: body.tools_enabled !== undefined ? body.tools_enabled : true,
+      enabled_tools: body.enabled_tools || [],
+      is_active: body.is_active !== undefined ? body.is_active : true
+    };
+
+    const result = await AgentConfigDB.create(config);
+    return NextResponse.json(result, { status: 201 });
+  } catch (error) {
+    console.error('Error creating agent configuration:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/agent-config - Update configuration
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    
+    if (!body.id) {
+      return NextResponse.json(
+        { error: 'Missing configuration ID' },
+        { status: 400 }
+      );
+    }
+
+    const { id, ...updateData } = body;
+    const result = await AgentConfigDB.update(id, updateData);
+    
+    if (!result) {
+      return NextResponse.json(
+        { error: 'Configuration not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('Error updating agent configuration:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/agent-config - Delete configuration
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Missing configuration ID' },
+        { status: 400 }
+      );
+    }
+
+    const success = await AgentConfigDB.delete(parseInt(id));
+    
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Configuration not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting agent configuration:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

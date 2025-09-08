@@ -68,3 +68,12 @@ tmp/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Log files (may contain secrets)
+*.log
+start-all-debug.log
+audio-debug.log
+console-debug.log
+ngrok.log
+server-debug.log
+test-debug.log

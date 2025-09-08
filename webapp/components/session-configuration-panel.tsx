@@ -30,6 +30,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   );
   const [voice, setVoice] = useState("ash");
   const [tools, setTools] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
   const [isJsonValid, setIsJsonValid] = useState(true);
@@ -42,6 +43,56 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
 
   // Custom hook to fetch backend tools every 3 seconds
   const backendTools = useBackendTools("http://localhost:8081/tools", 3000);
+
+  // Load saved configuration on component mount
+  useEffect(() => {
+    const loadConfiguration = async () => {
+      try {
+        console.log("Loading saved configuration...");
+        const response = await fetch('/api/agent-config?active=true');
+        
+        if (response.ok) {
+          const config = await response.json();
+          console.log("✅ Loaded configuration:", config);
+          
+          setInstructions(config.instructions || "You are a helpful assistant in a phone call.");
+          setVoice(config.voice || "ash");
+          
+          // Convert enabled tools to the format expected by the tools state
+          if (config.enabled_tools && config.enabled_tools.length > 0) {
+            // We need to get the full tool definitions from the backend
+            const toolsResponse = await fetch('/api/tools');
+            if (toolsResponse.ok) {
+              const allTools = await toolsResponse.json();
+              const enabledToolSchemas = allTools
+                .filter((tool: any) => config.enabled_tools.includes(tool.name))
+                .map((tool: any) => JSON.stringify({
+                  type: "function",
+                  function: {
+                    name: tool.name,
+                    description: tool.description,
+                    parameters: tool.parameters
+                  }
+                }));
+              setTools(enabledToolSchemas);
+            }
+          } else {
+            setTools([]);
+          }
+          
+          setHasUnsavedChanges(false);
+        } else {
+          console.log("No active configuration found, using defaults");
+        }
+      } catch (error) {
+        console.error("❌ Error loading configuration:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadConfiguration();
+  }, []);
 
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
@@ -174,7 +225,15 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       </CardHeader>
       <CardContent className="flex-1 p-3 sm:p-5">
         <ScrollArea className="h-full">
-          <div className="space-y-4 sm:space-y-6 m-1">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                <p className="text-sm text-gray-600">Loading configuration...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 sm:space-y-6 m-1">
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">
                 Instructions
@@ -269,6 +328,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               )}
             </Button>
           </div>
+          )}
         </ScrollArea>
       </CardContent>
 

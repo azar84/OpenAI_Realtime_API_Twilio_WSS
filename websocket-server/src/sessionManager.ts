@@ -1,5 +1,6 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
+import { getActiveAgentConfig, testConnection } from "./db";
 
 interface Session {
   twilioConn?: WebSocket;
@@ -81,11 +82,12 @@ function handleTwilioMessage(data: RawData) {
 
   switch (msg.event) {
     case "start":
+      console.log("🚀 Call START event received");
       session.streamSid = msg.start.streamSid;
       session.latestMediaTimestamp = 0;
       session.lastAssistantItem = undefined;
       session.responseStartTimestamp = undefined;
-      tryConnectModel();
+      tryConnectModel().catch(console.error);
       break;
     case "media":
       session.latestMediaTimestamp = msg.media.timestamp;
@@ -115,13 +117,31 @@ function handleFrontendMessage(data: RawData) {
   }
 }
 
-function tryConnectModel() {
+async function tryConnectModel() {
+  console.log("🤖 tryConnectModel() called");
+  
   if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
     return;
   if (isOpen(session.modelConn)) return;
 
+  // Fetch database configuration
+  console.log("🗃️  Fetching agent configuration from database...");
+  let dbConfig = null;
+  try {
+    dbConfig = await getActiveAgentConfig();
+    if (dbConfig) {
+      console.log("✅ Database config loaded:", dbConfig.name);
+      console.log("📝 Instructions:", dbConfig.instructions ? "Present" : "Missing");
+      console.log("🔊 Voice:", dbConfig.voice);
+    } else {
+      console.log("⚠️  No active configuration found in database");
+    }
+  } catch (error) {
+    console.error("❌ Failed to fetch agent config:", error);
+  }
+
   session.modelConn = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview",
     {
       headers: {
         Authorization: `Bearer ${session.openAIApiKey}`,
@@ -131,18 +151,53 @@ function tryConnectModel() {
   );
 
   session.modelConn.on("open", () => {
-    const config = session.saved_config || {};
+    console.log("🎉 OpenAI WebSocket connection opened!");
+    
+    const frontendConfig = session.saved_config || {};
+    
+    // Build base configuration with improved turn detection
+    const sessionConfig: any = {
+      modalities: ["text", "audio"],
+      turn_detection: { 
+        type: "server_vad",
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 500  // Increased for cleaner audio
+      },
+      voice: "ash",
+      input_audio_transcription: { model: "whisper-1" },
+      input_audio_format: "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+    };
+
+    // Apply database configuration if available
+    if (dbConfig) {
+      console.log("🗃️  Applying database configuration");
+      
+      if (dbConfig.instructions) {
+        sessionConfig.instructions = dbConfig.instructions;
+        console.log("✅ Instructions applied:", dbConfig.instructions.substring(0, 50) + "...");
+      }
+      
+      sessionConfig.voice = dbConfig.voice || "ash";
+      sessionConfig.temperature = dbConfig.temperature || 0.8;
+      
+      if (dbConfig.max_tokens) {
+        sessionConfig.max_response_output_tokens = dbConfig.max_tokens;
+      }
+    }
+
+    // Apply frontend overrides (highest priority)
+    Object.assign(sessionConfig, frontendConfig);
+    
+    console.log("📡 Final session config being sent to OpenAI:");
+    console.log("   Voice:", sessionConfig.voice);
+    console.log("   Instructions:", sessionConfig.instructions ? "✅ Present" : "❌ MISSING");
+    console.log("   Temperature:", sessionConfig.temperature);
+    
     jsonSend(session.modelConn, {
       type: "session.update",
-      session: {
-        modalities: ["text", "audio"],
-        turn_detection: { type: "server_vad" },
-        voice: "ash",
-        input_audio_transcription: { model: "whisper-1" },
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-        ...config,
-      },
+      session: sessionConfig,
     });
   });
 
@@ -154,6 +209,23 @@ function tryConnectModel() {
 function handleModelMessage(data: RawData) {
   const event = parseMessage(data);
   if (!event) return;
+
+  // Log important OpenAI events
+  if (event.type === 'session.created') {
+    console.log("✅ OpenAI session created");
+  } else if (event.type === 'session.updated') {
+    console.log("✅ OpenAI session updated");
+  } else if (event.type === 'input_audio_buffer.speech_started') {
+    console.log("🎙️  OpenAI detected speech start");
+  } else if (event.type === 'input_audio_buffer.speech_stopped') {
+    console.log("🛑 OpenAI detected speech stop");
+  } else if (event.type === 'response.created') {
+    console.log("💭 OpenAI creating response...");
+  } else if (event.type === 'response.audio.delta') {
+    console.log("🔊 OpenAI sending audio response");
+  } else if (event.type === 'error') {
+    console.error("❌ OpenAI error:", event.error);
+  }
 
   jsonSend(session.frontendConn, event);
 
