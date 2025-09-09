@@ -46,7 +46,7 @@ function handleCallConnection(ws, apiKey) {
                 config: {
                     audio: {
                         output: {
-                            voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'verse',
+                            voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash',
                         },
                     },
                 },
@@ -125,7 +125,7 @@ function handleVoiceChatConnection(ws, apiKey) {
                             format: 'pcm16',
                         },
                         output: {
-                            voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'verse',
+                            voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash',
                         },
                     },
                 },

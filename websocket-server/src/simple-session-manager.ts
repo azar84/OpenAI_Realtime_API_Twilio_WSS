@@ -39,7 +39,7 @@ export async function handleCallConnection(ws: WebSocket, apiKey: string) {
       config: {
         audio: {
           output: {
-            voice: agentConfig?.voice || 'verse',
+            voice: agentConfig?.voice || 'ash',
           },
         },
       },
@@ -131,7 +131,7 @@ export async function handleVoiceChatConnection(ws: WebSocket, apiKey: string) {
             format: 'pcm16',
           },
           output: {
-            voice: agentConfig?.voice || 'verse',
+            voice: agentConfig?.voice || 'ash',
           },
         },
       },
