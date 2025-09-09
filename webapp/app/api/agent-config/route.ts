@@ -67,13 +67,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Clamp temperature to [0.0, 1.0]
+    const temperature: number = typeof body.temperature === 'number'
+      ? Math.max(0.0, Math.min(1.0, body.temperature))
+      : 0.8;
+
     // Set defaults for missing fields
     const config = {
       name: body.name,
       instructions: body.instructions,
       voice: body.voice || 'ash',
       model: body.model || 'gpt-4o-realtime-preview-2024-12-17',
-      temperature: body.temperature || 0.8,
+      temperature,
       max_tokens: body.max_tokens || null,
       input_audio_format: body.input_audio_format || 'g711_ulaw',
       output_audio_format: body.output_audio_format || 'g711_ulaw',
@@ -113,6 +118,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, ...updateData } = body;
+
+    // Clamp temperature in updates to [0.0, 1.0] if provided
+    if (Object.prototype.hasOwnProperty.call(updateData, 'temperature')) {
+      const t = Number(updateData.temperature);
+      if (!Number.isNaN(t)) {
+        updateData.temperature = Math.max(0.0, Math.min(1.0, t));
+      } else {
+        delete updateData.temperature;
+      }
+    }
     const result = await AgentConfigDB.update(id, updateData);
     
     if (!result) {

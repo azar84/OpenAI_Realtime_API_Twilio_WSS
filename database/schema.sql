@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS agent_configs (
     CONSTRAINT valid_voice CHECK (voice IN ('alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'ash', 'ballad', 'coral', 'sage', 'verse')),
     CONSTRAINT valid_audio_format CHECK (input_audio_format IN ('pcm16', 'g711_ulaw', 'g711_alaw') AND output_audio_format IN ('pcm16', 'g711_ulaw', 'g711_alaw')),
     CONSTRAINT valid_turn_detection CHECK (turn_detection_type IN ('server_vad', 'none')),
-    CONSTRAINT valid_temperature CHECK (temperature >= 0.0 AND temperature <= 2.0)
+    CONSTRAINT valid_temperature CHECK (temperature >= 0.0 AND temperature <= 1.0)
 );
 
 -- Tool definitions table
