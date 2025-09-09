@@ -92,6 +92,8 @@ function handleTwilioMessage(data: RawData) {
   const msg = parseMessage(data);
   if (!msg) return;
 
+  console.log("📞 Twilio message received:", msg.event, msg);
+
   switch (msg.event) {
     case "start":
       session.streamSid = msg.start.streamSid;
@@ -186,10 +188,14 @@ function tryConnectModel() {
 
     jsonSend(session.modelConn, { type: "session.update", session: merged });
     jsonSend(session.modelConn, { type: "session.get" }); // echo to verify
+    
+    // Start the first response
+    jsonSend(session.modelConn, { type: "response.create" });
   });
 
   session.modelConn.on("message", (raw) => {
     const evt = parseMessage(raw);
+    console.log("🤖 Model message received:", evt?.type, evt);
     if (evt?.type === "session.updated") {
       console.log("Effective session from server:", evt.session); // should show voice, temp, max_output_tokens
     }

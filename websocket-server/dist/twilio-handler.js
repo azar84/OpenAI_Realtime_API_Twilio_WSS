@@ -95,6 +95,7 @@ function handleTwilioMessage(data) {
     const msg = parseMessage(data);
     if (!msg)
         return;
+    console.log("📞 Twilio message received:", msg.event, msg);
     switch (msg.event) {
         case "start":
             session.streamSid = msg.start.streamSid;
@@ -169,9 +170,12 @@ function tryConnectModel() {
             temperature }), (maxOutputTokens && { max_output_tokens: maxOutputTokens })), { voice, modalities: ["text", "audio"], turn_detection: { type: turnDetection }, instructions, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw", input_audio_transcription: { model: "whisper-1" } });
         jsonSend(session.modelConn, { type: "session.update", session: merged });
         jsonSend(session.modelConn, { type: "session.get" }); // echo to verify
+        // Start the first response
+        jsonSend(session.modelConn, { type: "response.create" });
     }));
     session.modelConn.on("message", (raw) => {
         const evt = parseMessage(raw);
+        console.log("🤖 Model message received:", evt === null || evt === void 0 ? void 0 : evt.type, evt);
         if ((evt === null || evt === void 0 ? void 0 : evt.type) === "session.updated") {
             console.log("Effective session from server:", evt.session); // should show voice, temp, max_output_tokens
         }
