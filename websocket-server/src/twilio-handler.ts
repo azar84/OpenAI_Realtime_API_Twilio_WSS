@@ -1,5 +1,6 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
+import { getActiveAgentConfig } from "./db";
 
 interface Session {
   twilioConn?: WebSocket;
@@ -130,14 +131,19 @@ function tryConnectModel() {
     }
   );
 
-  session.modelConn.on("open", () => {
+  session.modelConn.on("open", async () => {
     const config = session.saved_config || {};
+    
+    // Get agent configuration from database
+    const agentConfig = await getActiveAgentConfig();
+    const voice = agentConfig?.voice || 'ash';
+    
     jsonSend(session.modelConn, {
       type: "session.update",
       session: {
         modalities: ["text", "audio"],
         turn_detection: { type: "server_vad" },
-        voice: "ash",
+        voice: voice,
         input_audio_transcription: { model: "whisper-1" },
         input_audio_format: "g711_ulaw",
         output_audio_format: "g711_ulaw",

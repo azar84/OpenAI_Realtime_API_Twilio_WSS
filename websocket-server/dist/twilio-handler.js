@@ -16,6 +16,7 @@ exports.handleCallConnection = handleCallConnection;
 exports.handleFrontendConnection = handleFrontendConnection;
 const ws_1 = require("ws");
 const functionHandlers_1 = __importDefault(require("./functionHandlers"));
+const db_1 = require("./db");
 let session = {};
 function handleCallConnection(ws, openAIApiKey) {
     cleanupConnection(session.twilioConn);
@@ -124,13 +125,16 @@ function tryConnectModel() {
             "OpenAI-Beta": "realtime=v1",
         },
     });
-    session.modelConn.on("open", () => {
+    session.modelConn.on("open", () => __awaiter(this, void 0, void 0, function* () {
         const config = session.saved_config || {};
+        // Get agent configuration from database
+        const agentConfig = yield (0, db_1.getActiveAgentConfig)();
+        const voice = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash';
         jsonSend(session.modelConn, {
             type: "session.update",
-            session: Object.assign({ modalities: ["text", "audio"], turn_detection: { type: "server_vad" }, voice: "ash", input_audio_transcription: { model: "whisper-1" }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw" }, config),
+            session: Object.assign({ modalities: ["text", "audio"], turn_detection: { type: "server_vad" }, voice: voice, input_audio_transcription: { model: "whisper-1" }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw" }, config),
         });
-    });
+    }));
     session.modelConn.on("message", handleModelMessage);
     session.modelConn.on("error", closeModel);
     session.modelConn.on("close", closeModel);
