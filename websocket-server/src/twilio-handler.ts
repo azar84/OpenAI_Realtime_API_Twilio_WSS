@@ -147,28 +147,38 @@ function tryConnectModel() {
     const voice = agentConfig?.voice || 'ash';
     const instructions = agentConfig?.instructions || 'You are a helpful assistant.';
     const temperature = agentConfig?.temperature || 0.7;
+    const maxOutputTokens = agentConfig?.max_tokens;
     const turnDetectionType = agentConfig?.turn_detection_type || 'server_vad';
     
     console.log('🤖 Twilio Agent Config:', {
       voice,
       instructions: instructions.substring(0, 100) + '...',
       temperature,
+      maxOutputTokens,
       turnDetectionType
     });
     
+    const sessionConfig: any = {
+      // --- model behavior (top-level) ---
+      temperature: temperature,
+      voice: voice,  // voice at top level
+      modalities: ["text", "audio"],
+      turn_detection: { type: turnDetectionType },
+      instructions: instructions,
+      input_audio_transcription: { model: "whisper-1" },
+      input_audio_format: "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+      ...config,
+    };
+
+    // Add max_output_tokens if specified (correct parameter name)
+    if (maxOutputTokens) {
+      sessionConfig.max_output_tokens = maxOutputTokens;
+    }
+    
     jsonSend(session.modelConn, {
       type: "session.update",
-      session: {
-        modalities: ["text", "audio"],
-        turn_detection: { type: turnDetectionType },
-        voice: voice,
-        instructions: instructions,
-        temperature: temperature,
-        input_audio_transcription: { model: "whisper-1" },
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-        ...config,
-      },
+      session: sessionConfig,
     });
   });
 
