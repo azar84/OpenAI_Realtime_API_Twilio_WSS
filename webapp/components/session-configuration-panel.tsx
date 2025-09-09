@@ -68,7 +68,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           setInstructions(config.instructions || "You are a helpful assistant in a phone call.");
           setModel(config.model || "gpt-realtime");
           setVoice(config.voice || "ash");
-          setTemperature(config.temperature || 0.7);
+          // Clamp temperature to [0.0, 1.0]
+          const t = typeof config.temperature === 'number' ? config.temperature : 0.7;
+          setTemperature(Math.max(0, Math.min(1, t)));
           setMaxTokens(config.max_tokens || 4096);
           setTurnDetectionType(config.turn_detection_type || "server_vad");
           setTurnDetectionThreshold(config.turn_detection_threshold || 0.5);
@@ -327,11 +329,16 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                 <Input
                   type="number"
                   min="0"
-                  max="2"
-                  step="0.1"
+                  max="1"
+                  step="0.05"
                   placeholder="0.7"
                   value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.7)}
+                  onChange={(e) => {
+                    const raw = parseFloat(e.target.value);
+                    const safe = Number.isNaN(raw) ? 0.7 : raw;
+                    const clamped = Math.max(0, Math.min(1, safe));
+                    setTemperature(clamped);
+                  }}
                 />
               </div>
               <div className="space-y-2">
