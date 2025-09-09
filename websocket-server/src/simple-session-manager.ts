@@ -33,13 +33,18 @@ export async function handleCallConnection(ws: WebSocket, apiKey: string) {
     });
 
     // Create session with Twilio transport
+    const twilioModelSettings = {
+      temperature: agentConfig?.temperature || 0.7,
+      ...(agentConfig?.max_tokens ? { maxTokens: agentConfig.max_tokens } : {}),
+    };
+    console.log('🎛️ Twilio modelSettings:', twilioModelSettings);
+    
     const session = new RealtimeSession(agent, {
       transport: twilioTransport,
       model: 'gpt-realtime',
       config: {
-        modelSettings: {
-          temperature: agentConfig?.temperature || 0.7,
-          ...(agentConfig?.max_tokens ? { maxTokens: agentConfig.max_tokens } : {}),
+        providerData: {
+          modelSettings: twilioModelSettings,
         },
         audio: {
           output: {
@@ -47,7 +52,7 @@ export async function handleCallConnection(ws: WebSocket, apiKey: string) {
           },
         },
       },
-    } as any); // Use 'as any' to bypass TypeScript errors and test runtime behavior
+    });
 
     // Set up history tracking for frontend
     session.on('history_updated', (history) => {
@@ -127,12 +132,17 @@ export async function handleVoiceChatConnection(ws: WebSocket, apiKey: string) {
     });
 
     // Create session for tool calling
+    const voiceModelSettings = {
+      temperature: agentConfig?.temperature || 0.7,
+      ...(agentConfig?.max_tokens ? { maxTokens: agentConfig.max_tokens } : {}),
+    };
+    console.log('🎛️ Voice Chat modelSettings:', voiceModelSettings);
+    
     const session = new RealtimeSession(agent, {
       model: 'gpt-realtime',
       config: {
-        modelSettings: {
-          temperature: agentConfig?.temperature || 0.7,
-          ...(agentConfig?.max_tokens ? { maxTokens: agentConfig.max_tokens } : {}),
+        providerData: {
+          modelSettings: voiceModelSettings,
         },
         audio: {
           input: {
@@ -143,7 +153,7 @@ export async function handleVoiceChatConnection(ws: WebSocket, apiKey: string) {
           },
         },
       },
-    } as any); // Use 'as any' to bypass TypeScript errors and test runtime behavior
+    });
 
     // Set up history tracking for frontend
     session.on('history_updated', (history) => {
