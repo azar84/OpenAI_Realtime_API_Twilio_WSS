@@ -29,6 +29,7 @@ function handleCallConnection(ws, openAIApiKey) {
     session.lastAssistantItem = undefined;
     session.responseStartTimestamp = undefined;
     session.latestMediaTimestamp = undefined;
+    session.responseStarted = false;
     session.saved_config = undefined;
     ws.on("message", handleTwilioMessage);
     ws.on("error", (err) => {
@@ -102,15 +103,22 @@ function handleTwilioMessage(data) {
             session.latestMediaTimestamp = 0;
             session.lastAssistantItem = undefined;
             session.responseStartTimestamp = undefined;
+            session.responseStarted = false;
             tryConnectModel();
             break;
         case "media": {
             session.latestMediaTimestamp = msg.media.timestamp;
             if (isOpen(session.modelConn)) {
+                // Start response on first audio
+                if (!session.responseStarted) {
+                    jsonSend(session.modelConn, { type: "response.create" });
+                    session.responseStarted = true;
+                }
                 jsonSend(session.modelConn, {
                     type: "input_audio_buffer.append",
                     audio: msg.media.payload,
                 });
+                // Only commit if we have audio data and it's been a while since last commit
                 const now = Date.now();
                 if (now - lastCommit > 120) { // ~120ms throttle
                     jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
@@ -170,8 +178,6 @@ function tryConnectModel() {
             temperature }), (maxOutputTokens && { max_output_tokens: maxOutputTokens })), { voice, modalities: ["text", "audio"], turn_detection: { type: turnDetection }, instructions, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw", input_audio_transcription: { model: "whisper-1" } });
         jsonSend(session.modelConn, { type: "session.update", session: merged });
         jsonSend(session.modelConn, { type: "session.get" }); // echo to verify
-        // Start the first response
-        jsonSend(session.modelConn, { type: "response.create" });
     }));
     session.modelConn.on("message", (raw) => {
         const evt = parseMessage(raw);
