@@ -145,13 +145,25 @@ function tryConnectModel() {
     // Get agent configuration from database
     const agentConfig = await getActiveAgentConfig();
     const voice = agentConfig?.voice || 'ash';
+    const instructions = agentConfig?.instructions || 'You are a helpful assistant.';
+    const temperature = agentConfig?.temperature || 0.7;
+    const turnDetectionType = agentConfig?.turn_detection_type || 'server_vad';
+    
+    console.log('🤖 Twilio Agent Config:', {
+      voice,
+      instructions: instructions.substring(0, 100) + '...',
+      temperature,
+      turnDetectionType
+    });
     
     jsonSend(session.modelConn, {
       type: "session.update",
       session: {
         modalities: ["text", "audio"],
-        turn_detection: { type: "server_vad" },
+        turn_detection: { type: turnDetectionType },
         voice: voice,
+        instructions: instructions,
+        temperature: temperature,
         input_audio_transcription: { model: "whisper-1" },
         input_audio_format: "g711_ulaw",
         output_audio_format: "g711_ulaw",
