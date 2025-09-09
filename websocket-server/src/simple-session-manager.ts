@@ -18,9 +18,12 @@ export async function handleCallConnection(ws: WebSocket, apiKey: string) {
     );
     
     // Create agent with configuration from database
+    const twilioAgentName = agentConfig?.name || 'Twilio Agent';
+    const twilioBaseInstructions = agentConfig?.instructions || 'You are a helpful assistant.';
+    const twilioInstructions = `Your name is ${twilioAgentName}. ${twilioBaseInstructions}`;
     const agent = new RealtimeAgent({
-      name: agentConfig?.name || 'Twilio Agent',
-      instructions: agentConfig?.instructions || 'You are a helpful assistant.',
+      name: twilioAgentName,
+      instructions: twilioInstructions,
       tools: toolsToUse,
     });
 
@@ -110,9 +113,12 @@ export async function handleVoiceChatConnection(ws: WebSocket, apiKey: string) {
     );
     
     // Create agent with configuration from database
+    const voiceAgentName = agentConfig?.name || 'Voice Chat Agent';
+    const voiceBaseInstructions = agentConfig?.instructions || 'You are a helpful assistant.';
+    const voiceInstructions = `Your name is ${voiceAgentName}. ${voiceBaseInstructions}`;
     const agent = new RealtimeAgent({
-      name: agentConfig?.name || 'Voice Chat Agent',
-      instructions: agentConfig?.instructions || 'You are a helpful assistant.',
+      name: voiceAgentName,
+      instructions: voiceInstructions,
       tools: toolsToUse,
     });
 

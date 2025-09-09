@@ -27,9 +27,12 @@ function handleCallConnection(ws, apiKey) {
             // Filter tools based on enabled tools from database
             const toolsToUse = agent_tools_1.agentTools.filter(tool => enabledTools.includes(tool.name));
             // Create agent with configuration from database
+            const twilioAgentName = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.name) || 'Twilio Agent';
+            const twilioBaseInstructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
+            const twilioInstructions = `Your name is ${twilioAgentName}. ${twilioBaseInstructions}`;
             const agent = new realtime_1.RealtimeAgent({
-                name: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.name) || 'Twilio Agent',
-                instructions: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.',
+                name: twilioAgentName,
+                instructions: twilioInstructions,
                 tools: toolsToUse,
             });
             // Create Twilio transport layer
@@ -105,9 +108,12 @@ function handleVoiceChatConnection(ws, apiKey) {
             // Filter tools based on enabled tools from database
             const toolsToUse = agent_tools_1.agentTools.filter(tool => enabledTools.includes(tool.name));
             // Create agent with configuration from database
+            const voiceAgentName = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.name) || 'Voice Chat Agent';
+            const voiceBaseInstructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
+            const voiceInstructions = `Your name is ${voiceAgentName}. ${voiceBaseInstructions}`;
             const agent = new realtime_1.RealtimeAgent({
-                name: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.name) || 'Voice Chat Agent',
-                instructions: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.',
+                name: voiceAgentName,
+                instructions: voiceInstructions,
                 tools: toolsToUse,
             });
             // Create session for tool calling
