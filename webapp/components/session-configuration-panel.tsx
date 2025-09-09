@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash, Check, AlertCircle } from "lucide-react";
 import { toolTemplates } from "@/lib/tool-templates";
@@ -39,6 +41,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [turnDetectionPrefixPadding, setTurnDetectionPrefixPadding] = useState(300);
   const [turnDetectionSilenceDuration, setTurnDetectionSilenceDuration] = useState(200);
   const [tools, setTools] = useState<string[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
@@ -116,7 +119,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   // Track changes to determine if there are unsaved modifications
   useEffect(() => {
     setHasUnsavedChanges(true);
-  }, [instructions, voice, tools]);
+  }, [instructions, voice, tools, selectedLanguages]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -131,9 +134,16 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
+      // Build language instruction block and append to base instructions
+      const baseInstructions = stripLanguageInstruction(instructions).trim();
+      const languageBlock = buildLanguageInstruction(selectedLanguages);
+      const finalInstructions = languageBlock
+        ? `${baseInstructions}\n\n${languageBlock}`
+        : baseInstructions;
+
       await onSave({
         name,
-        instructions,
+        instructions: finalInstructions,
         model,
         voice,
         temperature,
@@ -149,6 +159,50 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     } catch (error) {
       setSaveStatus("error");
     }
+  };
+
+  // Language options
+  const LANGUAGE_OPTIONS: string[] = [
+    "English (US, UK, AU, CA varieties)",
+    "Spanish (Latin American & European)",
+    "French (France & Canadian French)",
+    "German",
+    "Portuguese (Brazilian & European)",
+    "Italian",
+    "Mandarin Chinese (Simplified, with strong support)",
+    "Japanese",
+    "Korean",
+    "Arabic (Modern Standard + regional variants reasonably supported)",
+  ];
+
+  const toggleLanguage = (lang: string, checked: boolean | string) => {
+    const isChecked = checked === true;
+    setSelectedLanguages((prev) => {
+      if (isChecked) {
+        // add if not present, preserving order
+        return prev.includes(lang) ? prev : [...prev, lang];
+      }
+      // remove
+      return prev.filter((l) => l !== lang);
+    });
+  };
+
+  const buildLanguageInstruction = (langs: string[]): string => {
+    if (!langs || langs.length === 0) return "";
+    const primary = langs[0];
+    const others = langs.slice(1);
+    if (others.length === 0) {
+      return `You speak ${primary}. You will use it as your primary language. If the user prefers a different supported language, you can switch accordingly.`;
+    }
+    const othersList = others.join(", ");
+    return `You speak ${primary} which you will use as your primary language. You can also speak ${othersList}. If the user wants to switch to another supported language, or you feel the user is not comfortable with the current language, you should switch accordingly.`;
+  };
+
+  // Remove any previously appended language paragraph starting with "You speak"
+  const stripLanguageInstruction = (text: string): string => {
+    if (!text) return text;
+    const pattern = /\n\nYou speak[\s\S]*$/i;
+    return text.replace(pattern, "");
   };
 
   const handleAddTool = () => {
@@ -321,6 +375,32 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Languages</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
+                {LANGUAGE_OPTIONS.map((lang) => (
+                  <div key={lang} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`lang-${lang}`}
+                      checked={selectedLanguages.includes(lang)}
+                      onCheckedChange={(checked) => toggleLanguage(lang, checked)}
+                    />
+                    <Label htmlFor={`lang-${lang}`} className="text-sm">
+                      {lang}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {selectedLanguages.length > 0 && (
+                <p className="text-xs text-gray-600">
+                  Primary: {selectedLanguages[0]}
+                  {selectedLanguages.length > 1 && (
+                    <> | Also: {selectedLanguages.slice(1).join(", ")}</>
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
