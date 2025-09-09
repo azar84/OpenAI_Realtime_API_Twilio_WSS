@@ -54,6 +54,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   >("idle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hasLoadedInitially, setHasLoadedInitially] = useState(false);
+  const [showInstructionsPreview, setShowInstructionsPreview] = useState(false);
 
   // Custom hook to fetch backend tools every 3 seconds
   const backendTools = useBackendTools("http://localhost:8081/tools", 3000);
@@ -144,6 +145,13 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     }
   }, [instructions, voice, tools, primaryLanguage, secondaryLanguages, hasLoadedInitially]);
 
+  // Auto-show preview when languages or name change
+  useEffect(() => {
+    if (hasLoadedInitially && (primaryLanguage || secondaryLanguages.length > 0 || (name && name.trim()))) {
+      setShowInstructionsPreview(true);
+    }
+  }, [primaryLanguage, secondaryLanguages, name, hasLoadedInitially]);
+
   // Reset save status after a delay when saved
   useEffect(() => {
     if (saveStatus === "saved") {
@@ -157,8 +165,14 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
-      // Build language instruction block and append to base instructions
-      const baseInstructions = stripLanguageInstruction(instructions).trim();
+      // Build final instructions with name prefix and language block
+      let baseInstructions = stripLanguageInstruction(instructions).trim();
+      
+      // Add name prefix if name is provided
+      if (name && name.trim()) {
+        baseInstructions = `Your name is ${name}.\n\n${baseInstructions}`;
+      }
+      
       const languageBlock = buildLanguageInstruction(primaryLanguage, secondaryLanguages);
       const finalInstructions = languageBlock
         ? `${baseInstructions}\n\n${languageBlock}`
@@ -182,6 +196,16 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       };
       console.log('💾 Full save data:', saveData);
       await onSave(saveData);
+      
+      // Reload the configuration to get the updated instructions with language block
+      console.log('🔄 Reloading configuration to get updated instructions...');
+      const reloadResponse = await fetch('/api/agent-config?active=true');
+      if (reloadResponse.ok) {
+        const updatedConfig = await reloadResponse.json();
+        console.log('📥 Updated instructions from server:', updatedConfig.instructions);
+        setInstructions(updatedConfig.instructions);
+      }
+      
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
     } catch (error) {
@@ -222,6 +246,21 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     }
     const othersList = secondary.join(", ");
     return `You speak ${primary} which you will use as your primary language. You can also speak ${othersList}. If the user wants to switch to another supported language, or you feel the user is not comfortable with the current language, you should switch accordingly.`;
+  };
+
+  // Generate preview of final instructions
+  const getFinalInstructionsPreview = (): string => {
+    let baseInstructions = stripLanguageInstruction(instructions).trim();
+    
+    // Add name prefix if name is provided
+    if (name && name.trim()) {
+      baseInstructions = `Your name is ${name}.\n\n${baseInstructions}`;
+    }
+    
+    const languageBlock = buildLanguageInstruction(primaryLanguage, secondaryLanguages);
+    return languageBlock
+      ? `${baseInstructions}\n\n${languageBlock}`
+      : baseInstructions;
   };
 
   // Remove any previously appended language paragraph starting with "You speak"
@@ -342,15 +381,35 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           ) : (
             <div className="space-y-4 sm:space-y-6 m-1 pb-8">
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
-                Instructions
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium leading-none">
+                  Instructions
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowInstructionsPreview(!showInstructionsPreview)}
+                >
+                  {showInstructionsPreview ? "Hide Preview" : "Show Final Instructions"}
+                </Button>
+              </div>
               <Textarea
                 placeholder="Enter instructions"
                 className="min-h-[200px] resize-y"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
               />
+              
+              {/* Instructions Preview */}
+              {showInstructionsPreview && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-gray-600">Final Instructions (with language block):</label>
+                  <div className="bg-gray-50 p-3 rounded-md border text-sm">
+                    <pre className="whitespace-pre-wrap text-gray-700">{getFinalInstructionsPreview()}</pre>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
