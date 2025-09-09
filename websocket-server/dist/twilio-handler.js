@@ -148,17 +148,24 @@ function tryConnectModel() {
             maxOutputTokens,
             turnDetectionType
         });
-        const sessionConfig = Object.assign({ 
-            // --- model behavior (top-level) ---
-            temperature: temperature, voice: voice, modalities: ["text", "audio"], turn_detection: { type: turnDetectionType }, instructions: instructions, input_audio_transcription: { model: "whisper-1" }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw" }, config);
-        // Add max_output_tokens if specified (correct parameter name)
-        if (maxOutputTokens) {
-            sessionConfig.max_output_tokens = maxOutputTokens;
-        }
         jsonSend(session.modelConn, {
             type: "session.update",
-            session: sessionConfig,
+            session: Object.assign(Object.assign(Object.assign({ 
+                // --- model behavior ---
+                temperature: temperature }, (maxOutputTokens && { max_output_tokens: maxOutputTokens })), { 
+                // --- voice selection (top-level) ---
+                voice: voice, 
+                // --- modalities / VAD ---
+                modalities: ["text", "audio"], turn_detection: { type: turnDetectionType }, 
+                // --- instructions ---
+                instructions: instructions, 
+                // --- telephony audio formats (Twilio Media Streams) ---
+                input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw", 
+                // optional transcription of caller audio
+                input_audio_transcription: { model: "whisper-1" } }), config),
         });
+        // (Optional) ask server to echo back effective settings
+        jsonSend(session.modelConn, { type: "session.get" });
     }));
     session.modelConn.on("message", handleModelMessage);
     session.modelConn.on("error", closeModel);
