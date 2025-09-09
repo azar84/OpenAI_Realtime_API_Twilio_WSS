@@ -41,7 +41,8 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const [turnDetectionPrefixPadding, setTurnDetectionPrefixPadding] = useState(300);
   const [turnDetectionSilenceDuration, setTurnDetectionSilenceDuration] = useState(200);
   const [tools, setTools] = useState<string[]>([]);
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [primaryLanguage, setPrimaryLanguage] = useState<string>("");
+  const [secondaryLanguages, setSecondaryLanguages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingSchemaStr, setEditingSchemaStr] = useState("");
@@ -104,13 +105,12 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           }
           
           // Load selected languages from database
-          if (config.languages && Array.isArray(config.languages)) {
-            console.log('📥 Loading languages from database:', config.languages);
-            setSelectedLanguages(config.languages);
-          } else {
-            console.log('📥 No languages in database, setting empty array');
-            setSelectedLanguages([]);
-          }
+          console.log('📥 Loading languages from database:', { 
+            primary: config.primary_language, 
+            secondary: config.secondary_languages 
+          });
+          setPrimaryLanguage(config.primary_language || "");
+          setSecondaryLanguages(config.secondary_languages || []);
           
           setHasUnsavedChanges(false);
           setHasLoadedInitially(true);
@@ -135,7 +135,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     if (hasLoadedInitially) {
       setHasUnsavedChanges(true);
     }
-  }, [instructions, voice, tools, selectedLanguages, hasLoadedInitially]);
+  }, [instructions, voice, tools, primaryLanguage, secondaryLanguages, hasLoadedInitially]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -152,12 +152,12 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     try {
       // Build language instruction block and append to base instructions
       const baseInstructions = stripLanguageInstruction(instructions).trim();
-      const languageBlock = buildLanguageInstruction(selectedLanguages);
+      const languageBlock = buildLanguageInstruction(primaryLanguage, secondaryLanguages);
       const finalInstructions = languageBlock
         ? `${baseInstructions}\n\n${languageBlock}`
         : baseInstructions;
 
-      console.log('💾 Saving with languages:', selectedLanguages);
+      console.log('💾 Saving with languages:', { primary: primaryLanguage, secondary: secondaryLanguages });
       await onSave({
         name,
         instructions: finalInstructions,
@@ -170,7 +170,8 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         turn_detection_prefix_padding_ms: turnDetectionPrefixPadding,
         turn_detection_silence_duration_ms: turnDetectionSilenceDuration,
         tools: tools.map((tool) => JSON.parse(tool)),
-        languages: selectedLanguages,
+        primary_language: primaryLanguage,
+        secondary_languages: secondaryLanguages,
       });
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
@@ -193,26 +194,24 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     "Arabic (Modern Standard + regional variants reasonably supported)",
   ];
 
-  const toggleLanguage = (lang: string, checked: boolean | string) => {
+  const toggleSecondaryLanguage = (lang: string, checked: boolean | string) => {
     const isChecked = checked === true;
-    console.log('🔄 Toggling language:', { lang, isChecked, currentSelected: selectedLanguages, hasLoadedInitially });
-    setSelectedLanguages((prev) => {
+    console.log('🔄 Toggling secondary language:', { lang, isChecked, currentSecondary: secondaryLanguages });
+    setSecondaryLanguages((prev) => {
       const newSelection = isChecked
         ? (prev.includes(lang) ? prev : [...prev, lang])
         : prev.filter((l) => l !== lang);
-      console.log('🔄 New language selection:', newSelection);
+      console.log('🔄 New secondary language selection:', newSelection);
       return newSelection;
     });
   };
 
-  const buildLanguageInstruction = (langs: string[]): string => {
-    if (!langs || langs.length === 0) return "";
-    const primary = langs[0];
-    const others = langs.slice(1);
-    if (others.length === 0) {
+  const buildLanguageInstruction = (primary: string, secondary: string[]): string => {
+    if (!primary) return "";
+    if (!secondary || secondary.length === 0) {
       return `You speak ${primary}. You will use it as your primary language. If the user prefers a different supported language, you can switch accordingly.`;
     }
-    const othersList = others.join(", ");
+    const othersList = secondary.join(", ");
     return `You speak ${primary} which you will use as your primary language. You can also speak ${othersList}. If the user wants to switch to another supported language, or you feel the user is not comfortable with the current language, you should switch accordingly.`;
   };
 
@@ -395,29 +394,57 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               <label className="text-sm font-medium leading-none">Languages</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
-                {LANGUAGE_OPTIONS.map((lang) => (
-                  <div key={lang} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`lang-${lang}`}
-                      checked={selectedLanguages.includes(lang)}
-                      onCheckedChange={(checked) => toggleLanguage(lang, checked)}
-                    />
-                    <Label htmlFor={`lang-${lang}`} className="text-sm">
-                      {lang}
-                    </Label>
-                  </div>
-                ))}
+              
+              {/* Primary Language Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600">Primary Language</label>
+                <Select value={primaryLanguage} onValueChange={setPrimaryLanguage}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select primary language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              {selectedLanguages.length > 0 && (
-                <p className="text-xs text-gray-600">
-                  Primary: {selectedLanguages[0]}
-                  {selectedLanguages.length > 1 && (
-                    <> | Also: {selectedLanguages.slice(1).join(", ")}</>
+
+              {/* Secondary Languages Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600">Secondary Languages (Optional)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <div key={lang} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`secondary-${lang}`}
+                        checked={secondaryLanguages.includes(lang)}
+                        onCheckedChange={(checked) => toggleSecondaryLanguage(lang, checked)}
+                        disabled={lang === primaryLanguage}
+                      />
+                      <Label htmlFor={`secondary-${lang}`} className="text-sm">
+                        {lang}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Language Summary */}
+              {(primaryLanguage || secondaryLanguages.length > 0) && (
+                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  <strong>Language Configuration:</strong><br/>
+                  {primaryLanguage && (
+                    <>Primary: {primaryLanguage}<br/></>
                   )}
-                </p>
+                  {secondaryLanguages.length > 0 && (
+                    <>Secondary: {secondaryLanguages.join(", ")}</>
+                  )}
+                </div>
               )}
             </div>
 

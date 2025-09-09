@@ -89,7 +89,8 @@ export async function POST(request: NextRequest) {
       modalities: body.modalities || ['text', 'audio'],
       tools_enabled: body.tools_enabled !== undefined ? body.tools_enabled : true,
       enabled_tools: body.enabled_tools || [],
-      languages: body.languages || [],
+      primary_language: body.primary_language || null,
+      secondary_languages: body.secondary_languages || [],
       is_active: body.is_active !== undefined ? body.is_active : true
     };
 

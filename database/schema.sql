@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS agent_configs (
     enabled_tools JSONB DEFAULT '[]'::jsonb, -- Array of tool names
     
     -- Language configuration
-    languages JSONB DEFAULT '[]'::jsonb, -- Array of selected languages
+    primary_language VARCHAR(100) DEFAULT NULL, -- Primary language
+    secondary_languages JSONB DEFAULT '[]'::jsonb, -- Array of secondary languages
     
     -- Metadata
     is_active BOOLEAN DEFAULT true,
