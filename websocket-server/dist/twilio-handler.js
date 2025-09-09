@@ -122,45 +122,49 @@ function handleFrontendMessage(data) {
     }
 }
 function tryConnectModel() {
-    if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
-        return;
-    if (isOpen(session.modelConn))
-        return;
-    session.modelConn = new ws_1.WebSocket("wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17", {
-        headers: {
-            Authorization: `Bearer ${session.openAIApiKey}`,
-            "OpenAI-Beta": "realtime=v1",
-        },
-    });
-    session.modelConn.on("open", () => __awaiter(this, void 0, void 0, function* () {
-        const config = session.saved_config || {};
-        // Get agent configuration from database
+    return __awaiter(this, void 0, void 0, function* () {
+        if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
+            return;
+        if (isOpen(session.modelConn))
+            return;
+        // Get agent configuration for URL parameters
         const agentConfig = yield (0, db_1.getActiveAgentConfig)();
-        const voice = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash';
-        const instructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
-        const temperature = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7;
         const maxTokens = agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens;
-        const turnDetectionType = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.turn_detection_type) || 'server_vad';
-        console.log('🤖 Twilio Agent Config:', {
-            voice,
-            instructions: instructions.substring(0, 100) + '...',
-            temperature,
-            maxTokens,
-            turnDetectionType
-        });
-        const sessionConfig = Object.assign({ modalities: ["text", "audio"], turn_detection: { type: turnDetectionType }, voice: voice, instructions: instructions, temperature: temperature, input_audio_transcription: { model: "whisper-1" }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw" }, config);
-        // Add max_tokens if specified (may not be supported by Realtime API)
+        // Build WebSocket URL with parameters
+        let wsUrl = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
         if (maxTokens) {
-            sessionConfig.max_tokens = maxTokens;
+            wsUrl += `&max_tokens=${maxTokens}`;
         }
-        jsonSend(session.modelConn, {
-            type: "session.update",
-            session: sessionConfig,
+        session.modelConn = new ws_1.WebSocket(wsUrl, {
+            headers: {
+                Authorization: `Bearer ${session.openAIApiKey}`,
+                "OpenAI-Beta": "realtime=v1",
+            },
         });
-    }));
-    session.modelConn.on("message", handleModelMessage);
-    session.modelConn.on("error", closeModel);
-    session.modelConn.on("close", closeModel);
+        session.modelConn.on("open", () => __awaiter(this, void 0, void 0, function* () {
+            const config = session.saved_config || {};
+            // Get agent configuration from database
+            const agentConfig = yield (0, db_1.getActiveAgentConfig)();
+            const voice = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash';
+            const instructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
+            const temperature = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7;
+            const turnDetectionType = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.turn_detection_type) || 'server_vad';
+            console.log('🤖 Twilio Agent Config:', {
+                voice,
+                instructions: instructions.substring(0, 100) + '...',
+                temperature,
+                maxTokens: agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens,
+                turnDetectionType
+            });
+            jsonSend(session.modelConn, {
+                type: "session.update",
+                session: Object.assign({ modalities: ["text", "audio"], turn_detection: { type: turnDetectionType }, voice: voice, instructions: instructions, temperature: temperature, input_audio_transcription: { model: "whisper-1" }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw" }, config),
+            });
+        }));
+        session.modelConn.on("message", handleModelMessage);
+        session.modelConn.on("error", closeModel);
+        session.modelConn.on("close", closeModel);
+    });
 }
 function handleModelMessage(data) {
     const event = parseMessage(data);

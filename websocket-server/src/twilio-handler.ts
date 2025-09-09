@@ -124,20 +124,27 @@ function handleFrontendMessage(data: RawData) {
   }
 }
 
-function tryConnectModel() {
+async function tryConnectModel() {
   if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
     return;
   if (isOpen(session.modelConn)) return;
 
-  session.modelConn = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
-    {
-      headers: {
-        Authorization: `Bearer ${session.openAIApiKey}`,
-        "OpenAI-Beta": "realtime=v1",
-      },
-    }
-  );
+  // Get agent configuration for URL parameters
+  const agentConfig = await getActiveAgentConfig();
+  const maxTokens = agentConfig?.max_tokens;
+  
+  // Build WebSocket URL with parameters
+  let wsUrl = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
+  if (maxTokens) {
+    wsUrl += `&max_tokens=${maxTokens}`;
+  }
+  
+  session.modelConn = new WebSocket(wsUrl, {
+    headers: {
+      Authorization: `Bearer ${session.openAIApiKey}`,
+      "OpenAI-Beta": "realtime=v1",
+    },
+  });
 
   session.modelConn.on("open", async () => {
     const config = session.saved_config || {};
@@ -147,37 +154,29 @@ function tryConnectModel() {
     const voice = agentConfig?.voice || 'ash';
     const instructions = agentConfig?.instructions || 'You are a helpful assistant.';
     const temperature = agentConfig?.temperature || 0.7;
-    const maxTokens = agentConfig?.max_tokens;
     const turnDetectionType = agentConfig?.turn_detection_type || 'server_vad';
     
     console.log('🤖 Twilio Agent Config:', {
       voice,
       instructions: instructions.substring(0, 100) + '...',
       temperature,
-      maxTokens,
+      maxTokens: agentConfig?.max_tokens,
       turnDetectionType
     });
     
-    const sessionConfig: any = {
-      modalities: ["text", "audio"],
-      turn_detection: { type: turnDetectionType },
-      voice: voice,
-      instructions: instructions,
-      temperature: temperature,
-      input_audio_transcription: { model: "whisper-1" },
-      input_audio_format: "g711_ulaw",
-      output_audio_format: "g711_ulaw",
-      ...config,
-    };
-
-    // Add max_tokens if specified (may not be supported by Realtime API)
-    if (maxTokens) {
-      sessionConfig.max_tokens = maxTokens;
-    }
-
     jsonSend(session.modelConn, {
       type: "session.update",
-      session: sessionConfig,
+      session: {
+        modalities: ["text", "audio"],
+        turn_detection: { type: turnDetectionType },
+        voice: voice,
+        instructions: instructions,
+        temperature: temperature,
+        input_audio_transcription: { model: "whisper-1" },
+        input_audio_format: "g711_ulaw",
+        output_audio_format: "g711_ulaw",
+        ...config,
+      },
     });
   });
 
