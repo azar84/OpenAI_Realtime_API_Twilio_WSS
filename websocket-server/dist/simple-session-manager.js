@@ -40,15 +40,10 @@ function handleCallConnection(ws, apiKey) {
                 twilioWebSocket: ws,
             });
             // Create session with Twilio transport
-            const twilioModelSettings = Object.assign({ temperature: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7 }, ((agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens) ? { maxTokens: agentConfig.max_tokens } : {}));
-            console.log('🎛️ Twilio modelSettings:', twilioModelSettings);
             const session = new realtime_1.RealtimeSession(agent, {
                 transport: twilioTransport,
                 model: 'gpt-realtime',
                 config: {
-                    providerData: {
-                        modelSettings: twilioModelSettings,
-                    },
                     audio: {
                         output: {
                             voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'verse',
@@ -122,14 +117,9 @@ function handleVoiceChatConnection(ws, apiKey) {
                 tools: toolsToUse,
             });
             // Create session for tool calling
-            const voiceModelSettings = Object.assign({ temperature: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7 }, ((agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens) ? { maxTokens: agentConfig.max_tokens } : {}));
-            console.log('🎛️ Voice Chat modelSettings:', voiceModelSettings);
             const session = new realtime_1.RealtimeSession(agent, {
                 model: 'gpt-realtime',
                 config: {
-                    providerData: {
-                        modelSettings: voiceModelSettings,
-                    },
                     audio: {
                         input: {
                             format: 'pcm16',

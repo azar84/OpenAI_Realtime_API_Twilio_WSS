@@ -33,19 +33,10 @@ export async function handleCallConnection(ws: WebSocket, apiKey: string) {
     });
 
     // Create session with Twilio transport
-    const twilioModelSettings = {
-      temperature: agentConfig?.temperature || 0.7,
-      ...(agentConfig?.max_tokens ? { maxTokens: agentConfig.max_tokens } : {}),
-    };
-    console.log('🎛️ Twilio modelSettings:', twilioModelSettings);
-    
     const session = new RealtimeSession(agent, {
       transport: twilioTransport,
       model: 'gpt-realtime',
       config: {
-        providerData: {
-          modelSettings: twilioModelSettings,
-        },
         audio: {
           output: {
             voice: agentConfig?.voice || 'verse',
@@ -132,18 +123,9 @@ export async function handleVoiceChatConnection(ws: WebSocket, apiKey: string) {
     });
 
     // Create session for tool calling
-    const voiceModelSettings = {
-      temperature: agentConfig?.temperature || 0.7,
-      ...(agentConfig?.max_tokens ? { maxTokens: agentConfig.max_tokens } : {}),
-    };
-    console.log('🎛️ Voice Chat modelSettings:', voiceModelSettings);
-    
     const session = new RealtimeSession(agent, {
       model: 'gpt-realtime',
       config: {
-        providerData: {
-          modelSettings: voiceModelSettings,
-        },
         audio: {
           input: {
             format: 'pcm16',
