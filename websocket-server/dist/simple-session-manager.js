@@ -44,11 +44,14 @@ function handleCallConnection(ws, apiKey) {
                 transport: twilioTransport,
                 model: 'gpt-realtime',
                 config: {
-                    audio: {
-                        output: {
-                            voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash',
-                        },
-                    },
+                    // ✅ voice must be top-level, not under audio.output
+                    voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash',
+                    // (keep your formats + transcription if you want)
+                    inputAudioTranscription: { model: 'whisper-1' },
+                    inputAudioFormat: 'g711_ulaw',
+                    outputAudioFormat: 'g711_ulaw',
+                    modalities: ['text', 'audio'],
+                    turnDetection: { type: 'server_vad' },
                 },
             });
             // Set up history tracking for frontend

@@ -32,18 +32,25 @@ export async function handleCallConnection(ws: WebSocket, apiKey: string) {
       twilioWebSocket: ws,
     });
 
-    // Create session with Twilio transport
-    const session = new RealtimeSession(agent, {
-      transport: twilioTransport,
-      model: 'gpt-realtime',
-      config: {
-        audio: {
-          output: {
-            voice: agentConfig?.voice || 'ash',
-          },
-        },
-      },
-    });
+// Create session with Twilio transport
+const session = new RealtimeSession(agent, {
+  transport: twilioTransport,
+  model: 'gpt-realtime',
+
+  config: {
+    // ✅ voice must be top-level, not under audio.output
+    voice: agentConfig?.voice || 'ash',
+
+    // (keep your formats + transcription if you want)
+    inputAudioTranscription: { model: 'whisper-1' },
+    inputAudioFormat: 'g711_ulaw',
+    outputAudioFormat: 'g711_ulaw',
+
+    modalities: ['text', 'audio'],
+    turnDetection: { type: 'server_vad' },
+  },
+});
+
 
     // Set up history tracking for frontend
     session.on('history_updated', (history) => {

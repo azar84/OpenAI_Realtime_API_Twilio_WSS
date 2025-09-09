@@ -9,6 +9,8 @@ import cors from "cors";
 import {
   handleCallConnection,
   handleFrontendConnection,
+} from "./twilio-handler";
+import {
   handleVoiceChatConnection,
 } from "./simple-session-manager";
 import { agentTools } from "./agent-tools";
