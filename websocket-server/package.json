@@ -13,6 +13,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@openai/agents": "^0.1.1",
+    "@openai/agents-extensions": "^0.1.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.15.5",
     "@types/ws": "^8.5.12",
@@ -23,7 +25,8 @@
     "pg": "^8.16.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

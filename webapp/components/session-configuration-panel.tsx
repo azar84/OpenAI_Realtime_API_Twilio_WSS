@@ -204,7 +204,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       <CardHeader className="pb-0 px-4 sm:px-6">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
-            Session Configuration
+            Agent Settings
           </CardTitle>
           <div className="flex items-center gap-2">
             {saveStatus === "error" ? (
@@ -240,7 +240,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </label>
               <Textarea
                 placeholder="Enter instructions"
-                className="min-h-[100px] resize-none"
+                className="min-h-[200px] resize-y"
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
               />

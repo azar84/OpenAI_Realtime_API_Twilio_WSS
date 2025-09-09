@@ -10,8 +10,8 @@ import {
   handleCallConnection,
   handleFrontendConnection,
   handleVoiceChatConnection,
-} from "./sessionManager";
-import functions from "./functionHandlers";
+} from "./simple-session-manager";
+import { agentTools } from "./agent-tools";
 import { testConnection } from "./db";
 
 dotenv.config();
@@ -50,14 +50,28 @@ app.all("/twiml", (req, res) => {
 
 // New endpoint to list available tools (schemas)
 app.get("/tools", (req, res) => {
-  res.json(functions.map((f) => f.schema));
+  res.json(agentTools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  })));
 });
 
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
 let currentVoiceChat: WebSocket | null = null;
 
-wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+// Function to broadcast to logs WebSocket
+function broadcastToLogs(message: any) {
+  if (currentLogs && currentLogs.readyState === WebSocket.OPEN) {
+    currentLogs.send(JSON.stringify(message));
+  }
+}
+
+// Make broadcastToLogs available globally
+(global as any).broadcastToLogs = broadcastToLogs;
+
+wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
   const url = new URL(req.url || "", `http://${req.headers.host}`);
   const parts = url.pathname.split("/").filter(Boolean);
 
@@ -68,19 +82,24 @@ wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
 
   const type = parts[0];
 
-  if (type === "call") {
-    if (currentCall) currentCall.close();
-    currentCall = ws;
-    handleCallConnection(currentCall, OPENAI_API_KEY);
-  } else if (type === "logs") {
-    if (currentLogs) currentLogs.close();
-    currentLogs = ws;
-    handleFrontendConnection(currentLogs);
-  } else if (type === "voice-chat") {
-    if (currentVoiceChat) currentVoiceChat.close();
-    currentVoiceChat = ws;
-    handleVoiceChatConnection(currentVoiceChat, OPENAI_API_KEY);
-  } else {
+  try {
+    if (type === "call") {
+      if (currentCall) currentCall.close();
+      currentCall = ws;
+      await handleCallConnection(currentCall, OPENAI_API_KEY);
+    } else if (type === "logs") {
+      if (currentLogs) currentLogs.close();
+      currentLogs = ws;
+      handleFrontendConnection(currentLogs);
+    } else if (type === "voice-chat") {
+      if (currentVoiceChat) currentVoiceChat.close();
+      currentVoiceChat = ws;
+      await handleVoiceChatConnection(currentVoiceChat, OPENAI_API_KEY);
+    } else {
+      ws.close();
+    }
+  } catch (error) {
+    console.error(`Error handling ${type} connection:`, error);
     ws.close();
   }
 });
@@ -90,4 +109,21 @@ server.listen(PORT, async () => {
   
   // Test database connection
   await testConnection();
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('Shutting down server...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log('Shutting down server...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });

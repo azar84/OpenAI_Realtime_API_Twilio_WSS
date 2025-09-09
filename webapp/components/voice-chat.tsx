@@ -174,7 +174,7 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
           audioQueueRef.current.push(event.data);
           playNextAudio();
         } else {
-          // Received text/JSON message
+          // Received text/JSON message or base64 audio
           try {
             const data = JSON.parse(event.data);
             console.log("📱 Voice chat message:", data);
@@ -183,7 +183,27 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
               onTranscript(data.text, data.isUser);
             }
           } catch (error) {
-            console.log("📱 Non-JSON message received:", event.data);
+            // Check if it's base64 audio data
+            if (typeof event.data === 'string' && event.data.length > 100) {
+              console.log("🔊 Received base64 audio data, length:", event.data.length);
+              try {
+                // Convert base64 to ArrayBuffer
+                const binaryString = atob(event.data);
+                const arrayBuffer = new ArrayBuffer(binaryString.length);
+                const uint8Array = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < binaryString.length; i++) {
+                  uint8Array[i] = binaryString.charCodeAt(i);
+                }
+                
+                console.log("✅ Converted base64 to ArrayBuffer, size:", arrayBuffer.byteLength);
+                audioQueueRef.current.push(arrayBuffer);
+                playNextAudio();
+              } catch (base64Error) {
+                console.error("❌ Error converting base64 audio:", base64Error);
+              }
+            } else {
+              console.log("📱 Non-JSON message received:", event.data);
+            }
           }
         }
       };
@@ -289,16 +309,16 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
     
     try {
       if (audioContextRef.current) {
-        let audioBuffer;
-        
-        try {
-          // Try to decode as encoded audio first (WebM, etc.)
-          audioBuffer = await audioContextRef.current.decodeAudioData(audioData.slice(0));
-        } catch (decodeError) {
-          // If decoding fails, assume it's PCM16 data and convert it
-          console.log("🔄 Converting PCM16 data to audio buffer");
-          audioBuffer = convertPCM16ToAudioBuffer(audioData);
+        // Resume audio context if suspended
+        if (audioContextRef.current.state === 'suspended') {
+          console.log("🔄 Resuming suspended audio context for playback...");
+          await audioContextRef.current.resume();
         }
+        
+        console.log("🔊 Playing audio data, size:", audioData.byteLength);
+        
+        // Convert PCM16 data to audio buffer (backend sends raw PCM16)
+        const audioBuffer = convertPCM16ToAudioBuffer(audioData);
         
         if (audioBuffer) {
           const source = audioContextRef.current.createBufferSource();
@@ -306,17 +326,20 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
           source.connect(audioContextRef.current.destination);
           
           source.onended = () => {
+            console.log("✅ Audio playback finished");
             isPlayingRef.current = false;
             playNextAudio(); // Play next audio in queue
           };
           
           if (!isMuted) {
+            console.log("🔊 Starting audio playback...");
             source.start();
           } else {
+            console.log("🔇 Audio muted, skipping playback");
             source.onended();
           }
         } else {
-          throw new Error("Failed to create audio buffer");
+          throw new Error("Failed to create audio buffer from PCM16 data");
         }
       }
     } catch (error) {
@@ -327,7 +350,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
   };
 
   const convertPCM16ToAudioBuffer = (pcmData: ArrayBuffer): AudioBuffer | null => {
-    if (!audioContextRef.current) return null;
+    if (!audioContextRef.current) {
+      console.error("❌ No audio context available for PCM16 conversion");
+      return null;
+    }
     
     try {
       const pcmArray = new Int16Array(pcmData);
@@ -335,12 +361,26 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
       const audioBuffer = audioContextRef.current.createBuffer(1, pcmArray.length, sampleRate);
       const channelData = audioBuffer.getChannelData(0);
       
+      console.log("🔄 Converting PCM16 data:", {
+        pcmLength: pcmArray.length,
+        sampleRate: sampleRate,
+        duration: (pcmArray.length / sampleRate).toFixed(2) + "s"
+      });
+      
       // Convert 16-bit PCM to float32 (-1.0 to 1.0)
+      let maxSample = 0;
       for (let i = 0; i < pcmArray.length; i++) {
-        channelData[i] = pcmArray[i] / 32768.0;
+        const sample = pcmArray[i] / 32768.0;
+        channelData[i] = sample;
+        maxSample = Math.max(maxSample, Math.abs(sample));
       }
       
-      console.log("✅ Converted PCM16 to audio buffer:", pcmArray.length, "samples");
+      console.log("✅ Converted PCM16 to audio buffer:", {
+        samples: pcmArray.length,
+        maxSample: maxSample.toFixed(4),
+        hasAudio: maxSample > 0.001
+      });
+      
       return audioBuffer;
     } catch (error) {
       console.error("❌ Error converting PCM16:", error);

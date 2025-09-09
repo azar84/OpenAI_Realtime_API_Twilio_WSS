@@ -103,7 +103,17 @@ const FunctionCallsPanel: React.FC<FunctionCallsPanelProps> = ({
                   </div>
                 ) : (
                   <div className="text-sm rounded-md bg-muted p-3">
-                    {JSON.stringify(JSON.parse(call.response || ""))}
+                    {(() => {
+                      try {
+                        if (!call.response || call.response.trim() === "") {
+                          return "No response";
+                        }
+                        const parsed = JSON.parse(call.response);
+                        return JSON.stringify(parsed, null, 2);
+                      } catch (error) {
+                        return call.response || "Invalid response format";
+                      }
+                    })()}
                   </div>
                 )}
               </div>

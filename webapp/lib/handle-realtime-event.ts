@@ -225,6 +225,89 @@ export default function handleRealtimeEvent(
       break;
     }
 
+    case "history_updated": {
+      // Handle Agent SDK history updates
+      const { history } = ev;
+      console.log("History updated from Agent SDK:", history.length, "items");
+      
+      // Convert Agent SDK history format to our frontend format
+      const convertedItems = history.map((item: any, index: number) => {
+        if (item.type === 'message') {
+          // Extract text content properly
+          let textContent = '';
+          
+          if (typeof item.content === 'string') {
+            textContent = item.content;
+          } else if (Array.isArray(item.content)) {
+            // Handle Agent SDK format: array of objects with type and transcript
+            textContent = item.content.map((c: any) => {
+              if (typeof c === 'string') return c;
+              if (c && typeof c === 'object') {
+                // Extract transcript from input_audio or output_audio objects
+                if (c.transcript !== undefined && c.transcript !== null) {
+                  return c.transcript; // Return transcript even if empty
+                }
+                if (c.text) return c.text;
+                if (c.content) return c.content;
+                // Don't fall back to JSON.stringify for audio objects
+                return '';
+              }
+              return String(c);
+            }).join('');
+          } else if (item.content && typeof item.content === 'object') {
+            textContent = item.content.text || item.content.content || JSON.stringify(item.content);
+          } else {
+            textContent = item.text || item.content || '';
+          }
+          
+          // Only include messages with actual content
+          if (!textContent || textContent.trim() === '') {
+            return null;
+          }
+
+          return createNewItem({
+            id: item.itemId || `msg_${index}`,
+            type: "message",
+            role: item.role === 'user' ? 'user' : 'assistant',
+            content: [
+              {
+                type: "text",
+                text: textContent,
+              },
+            ],
+            status: item.status === 'completed' ? 'completed' : 'running',
+            timestamp: new Date().toLocaleTimeString(),
+          });
+        } else if (item.type === 'function_call') {
+          return createNewItem({
+            id: item.itemId || `call_${index}`,
+            type: "function_call",
+            call_id: item.itemId || `call_${index}`,
+            name: item.name,
+            arguments: JSON.stringify(item.arguments || {}),
+            status: "completed",
+            timestamp: new Date().toLocaleTimeString(),
+          });
+        }
+        return null;
+      }).filter(Boolean);
+      
+      // Smart update: merge with existing items instead of replacing
+      setItems(prevItems => {
+        const existingIds = new Set(prevItems.map(item => item.id));
+        const newItems = convertedItems.filter(item => !existingIds.has(item.id));
+        
+        // Only add new items, preserve existing ones
+        if (newItems.length > 0) {
+          console.log(`Adding ${newItems.length} new items, preserving ${prevItems.length} existing items`);
+          return [...prevItems, ...newItems];
+        }
+        
+        return prevItems; // No new items, keep existing
+      });
+      break;
+    }
+
     default:
       break;
   }
