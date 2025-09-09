@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS agent_configs (
     tools_enabled BOOLEAN DEFAULT true,
     enabled_tools JSONB DEFAULT '[]'::jsonb, -- Array of tool names
     
+    -- Language configuration
+    languages JSONB DEFAULT '[]'::jsonb, -- Array of selected languages
+    
     -- Metadata
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

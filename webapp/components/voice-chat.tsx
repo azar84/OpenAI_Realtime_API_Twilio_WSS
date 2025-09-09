@@ -336,7 +336,10 @@ const VoiceChat: React.FC<VoiceChatProps> = ({ onTranscript }) => {
             source.start();
           } else {
             console.log("🔇 Audio muted, skipping playback");
-            source.onended();
+            // Trigger the onended event manually
+            if (source.onended) {
+              source.onended(new Event('ended'));
+            }
           }
         } else {
           throw new Error("Failed to create audio buffer from PCM16 data");

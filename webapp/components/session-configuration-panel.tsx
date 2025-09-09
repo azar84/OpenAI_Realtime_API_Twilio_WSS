@@ -102,6 +102,13 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
             setTools([]);
           }
           
+          // Load selected languages from database
+          if (config.languages && Array.isArray(config.languages)) {
+            setSelectedLanguages(config.languages);
+          } else {
+            setSelectedLanguages([]);
+          }
+          
           setHasUnsavedChanges(false);
         } else {
           console.log("No active configuration found, using defaults");
@@ -153,6 +160,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         turn_detection_prefix_padding_ms: turnDetectionPrefixPadding,
         turn_detection_silence_duration_ms: turnDetectionSilenceDuration,
         tools: tools.map((tool) => JSON.parse(tool)),
+        languages: selectedLanguages,
       });
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
