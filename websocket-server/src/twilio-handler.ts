@@ -124,27 +124,20 @@ function handleFrontendMessage(data: RawData) {
   }
 }
 
-async function tryConnectModel() {
+function tryConnectModel() {
   if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
     return;
   if (isOpen(session.modelConn)) return;
 
-  // Get agent configuration for URL parameters
-  const agentConfig = await getActiveAgentConfig();
-  const maxTokens = agentConfig?.max_tokens;
-  
-  // Build WebSocket URL with parameters
-  let wsUrl = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
-  if (maxTokens) {
-    wsUrl += `&max_tokens=${maxTokens}`;
-  }
-  
-  session.modelConn = new WebSocket(wsUrl, {
-    headers: {
-      Authorization: `Bearer ${session.openAIApiKey}`,
-      "OpenAI-Beta": "realtime=v1",
-    },
-  });
+  session.modelConn = new WebSocket(
+    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+    {
+      headers: {
+        Authorization: `Bearer ${session.openAIApiKey}`,
+        "OpenAI-Beta": "realtime=v1",
+      },
+    }
+  );
 
   session.modelConn.on("open", async () => {
     const config = session.saved_config || {};
@@ -160,7 +153,6 @@ async function tryConnectModel() {
       voice,
       instructions: instructions.substring(0, 100) + '...',
       temperature,
-      maxTokens: agentConfig?.max_tokens,
       turnDetectionType
     });
     
