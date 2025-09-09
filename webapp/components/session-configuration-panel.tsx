@@ -176,7 +176,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       ? `${baseInstructions}\n\n${languageBlock}`
       : baseInstructions;
     
-    // Update the instructions field
+    // Update the instructions field with complete instructions
     setInstructions(finalInstructions);
   };
 
