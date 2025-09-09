@@ -44,13 +44,14 @@ function handleCallConnection(ws, apiKey) {
                 transport: twilioTransport,
                 model: 'gpt-realtime',
                 config: {
+                    modelSettings: Object.assign({ temperature: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7 }, ((agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens) ? { maxTokens: agentConfig.max_tokens } : {})),
                     audio: {
                         output: {
                             voice: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'verse',
                         },
                     },
                 },
-            });
+            }); // Use 'as any' to bypass TypeScript errors and test runtime behavior
             // Set up history tracking for frontend
             session.on('history_updated', (history) => {
                 console.log('Twilio History updated:', history.length, 'items');
@@ -120,6 +121,7 @@ function handleVoiceChatConnection(ws, apiKey) {
             const session = new realtime_1.RealtimeSession(agent, {
                 model: 'gpt-realtime',
                 config: {
+                    modelSettings: Object.assign({ temperature: (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7 }, ((agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens) ? { maxTokens: agentConfig.max_tokens } : {})),
                     audio: {
                         input: {
                             format: 'pcm16',
@@ -129,7 +131,7 @@ function handleVoiceChatConnection(ws, apiKey) {
                         },
                     },
                 },
-            });
+            }); // Use 'as any' to bypass TypeScript errors and test runtime behavior
             // Set up history tracking for frontend
             session.on('history_updated', (history) => {
                 console.log('Voice chat history updated:', history);
