@@ -15,6 +15,7 @@ interface Session {
 }
 
 let session: Session = {};
+let lastCommit = 0;
 
 export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
   // Clean up any existing connections and reset session
@@ -30,7 +31,10 @@ export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
   session.saved_config = undefined;
 
   ws.on("message", handleTwilioMessage);
-  ws.on("error", ws.close);
+  ws.on("error", (err) => {
+    console.error("Twilio WS error:", err);
+    try { ws.close(); } catch {}
+  });
   ws.on("close", () => {
     cleanupConnection(session.modelConn);
     cleanupConnection(session.twilioConn);
@@ -96,15 +100,21 @@ function handleTwilioMessage(data: RawData) {
       session.responseStartTimestamp = undefined;
       tryConnectModel();
       break;
-    case "media":
+    case "media": {
       session.latestMediaTimestamp = msg.media.timestamp;
       if (isOpen(session.modelConn)) {
         jsonSend(session.modelConn, {
           type: "input_audio_buffer.append",
           audio: msg.media.payload,
         });
+        const now = Date.now();
+        if (now - lastCommit > 120) { // ~120ms throttle
+          jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
+          lastCommit = now;
+        }
       }
       break;
+    }
     case "close":
       closeAllConnections();
       break;
@@ -130,7 +140,7 @@ function tryConnectModel() {
   if (isOpen(session.modelConn)) return;
 
   session.modelConn = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+    "wss://api.openai.com/v1/realtime?model=gpt-realtime",
     {
       headers: {
         Authorization: `Bearer ${session.openAIApiKey}`,
@@ -141,56 +151,50 @@ function tryConnectModel() {
 
   session.modelConn.on("open", async () => {
     const config = session.saved_config || {};
-    
-    // Get agent configuration from database
+
+    // Pull DB config
     const agentConfig = await getActiveAgentConfig();
-    const voice = agentConfig?.voice || 'ash';
-    const instructions = agentConfig?.instructions || 'You are a helpful assistant.';
-    const temperature = agentConfig?.temperature || 0.7;
-    const maxOutputTokens = agentConfig?.max_tokens;
-    const turnDetectionType = agentConfig?.turn_detection_type || 'server_vad';
-    
+    const voice            = agentConfig?.voice || "ash";
+    const instructions     = agentConfig?.instructions || "You are a helpful assistant.";
+    const temperature      = agentConfig?.temperature ?? 0.7;
+    const maxOutputTokens  = agentConfig?.max_tokens;
+    const turnDetection    = agentConfig?.turn_detection_type || "server_vad";
+
     console.log('🤖 Twilio Agent Config:', {
       voice,
       instructions: instructions.substring(0, 100) + '...',
       temperature,
       maxOutputTokens,
-      turnDetectionType
-    });
-    
-    jsonSend(session.modelConn, {
-      type: "session.update",
-      session: {
-        // --- model behavior ---
-        temperature: temperature,
-        ...(maxOutputTokens && { max_output_tokens: maxOutputTokens }),
-
-        // --- voice selection (top-level) ---
-        voice: voice,
-
-        // --- modalities / VAD ---
-        modalities: ["text", "audio"],
-        turn_detection: { type: turnDetectionType },
-
-        // --- instructions ---
-        instructions: instructions,
-
-        // --- telephony audio formats (Twilio Media Streams) ---
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-
-        // optional transcription of caller audio
-        input_audio_transcription: { model: "whisper-1" },
-        
-        ...config,
-      },
+      turnDetection
     });
 
-    // (Optional) ask server to echo back effective settings
-    jsonSend(session.modelConn, { type: "session.get" });
+    // IMPORTANT: don't let saved_config clobber your voice/params
+    // Apply saved_config FIRST, then your authoritative fields after.
+    const merged = {
+      ...config, // ← anything from frontend, but may omit/old values
+      // authoritative values from DB come AFTER:
+      temperature,
+      ...(maxOutputTokens && { max_output_tokens: maxOutputTokens }),
+      voice,
+      modalities: ["text", "audio"],
+      turn_detection: { type: turnDetection },
+      instructions,
+      input_audio_format:  "g711_ulaw",
+      output_audio_format: "g711_ulaw",
+      input_audio_transcription: { model: "whisper-1" },
+    };
+
+    jsonSend(session.modelConn, { type: "session.update", session: merged });
+    jsonSend(session.modelConn, { type: "session.get" }); // echo to verify
   });
 
-  session.modelConn.on("message", handleModelMessage);
+  session.modelConn.on("message", (raw) => {
+    const evt = parseMessage(raw);
+    if (evt?.type === "session.updated") {
+      console.log("Effective session from server:", evt.session); // should show voice, temp, max_output_tokens
+    }
+    handleModelMessage(raw);
+  });
   session.modelConn.on("error", closeModel);
   session.modelConn.on("close", closeModel);
 }
