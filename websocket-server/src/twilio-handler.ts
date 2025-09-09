@@ -147,12 +147,14 @@ function tryConnectModel() {
     const voice = agentConfig?.voice || 'ash';
     const instructions = agentConfig?.instructions || 'You are a helpful assistant.';
     const temperature = agentConfig?.temperature || 0.7;
+    const maxTokens = agentConfig?.max_tokens;
     const turnDetectionType = agentConfig?.turn_detection_type || 'server_vad';
     
     console.log('🤖 Twilio Agent Config:', {
       voice,
       instructions: instructions.substring(0, 100) + '...',
       temperature,
+      maxTokens,
       turnDetectionType
     });
     
@@ -164,9 +166,13 @@ function tryConnectModel() {
         voice: voice,
         instructions: instructions,
         temperature: temperature,
+        ...(maxTokens && { max_response_output_tokens: maxTokens }),
+       
+   
         input_audio_transcription: { model: "whisper-1" },
         input_audio_format: "g711_ulaw",
         output_audio_format: "g711_ulaw",
+      
         ...config,
       },
     });

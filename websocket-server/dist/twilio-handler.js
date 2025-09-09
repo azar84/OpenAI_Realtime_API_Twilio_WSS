@@ -18,7 +18,6 @@ const ws_1 = require("ws");
 const functionHandlers_1 = __importDefault(require("./functionHandlers"));
 const db_1 = require("./db");
 let session = {};
-let lastCommit = 0;
 function handleCallConnection(ws, openAIApiKey) {
     // Clean up any existing connections and reset session
     closeAllConnections();
@@ -29,16 +28,9 @@ function handleCallConnection(ws, openAIApiKey) {
     session.lastAssistantItem = undefined;
     session.responseStartTimestamp = undefined;
     session.latestMediaTimestamp = undefined;
-    session.responseStarted = false;
     session.saved_config = undefined;
     ws.on("message", handleTwilioMessage);
-    ws.on("error", (err) => {
-        console.error("Twilio WS error:", err);
-        try {
-            ws.close();
-        }
-        catch (_a) { }
-    });
+    ws.on("error", ws.close);
     ws.on("close", () => {
         cleanupConnection(session.modelConn);
         cleanupConnection(session.twilioConn);
@@ -96,37 +88,23 @@ function handleTwilioMessage(data) {
     const msg = parseMessage(data);
     if (!msg)
         return;
-    console.log("📞 Twilio message received:", msg.event, msg);
     switch (msg.event) {
         case "start":
             session.streamSid = msg.start.streamSid;
             session.latestMediaTimestamp = 0;
             session.lastAssistantItem = undefined;
             session.responseStartTimestamp = undefined;
-            session.responseStarted = false;
             tryConnectModel();
             break;
-        case "media": {
+        case "media":
             session.latestMediaTimestamp = msg.media.timestamp;
             if (isOpen(session.modelConn)) {
-                // Start response on first audio
-                if (!session.responseStarted) {
-                    jsonSend(session.modelConn, { type: "response.create" });
-                    session.responseStarted = true;
-                }
                 jsonSend(session.modelConn, {
                     type: "input_audio_buffer.append",
                     audio: msg.media.payload,
                 });
-                // Only commit if we have audio data and it's been a while since last commit
-                const now = Date.now();
-                if (now - lastCommit > 120) { // ~120ms throttle
-                    jsonSend(session.modelConn, { type: "input_audio_buffer.commit" });
-                    lastCommit = now;
-                }
             }
             break;
-        }
         case "close":
             closeAllConnections();
             break;
@@ -148,45 +126,34 @@ function tryConnectModel() {
         return;
     if (isOpen(session.modelConn))
         return;
-    session.modelConn = new ws_1.WebSocket("wss://api.openai.com/v1/realtime?model=gpt-realtime", {
+    session.modelConn = new ws_1.WebSocket("wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17", {
         headers: {
             Authorization: `Bearer ${session.openAIApiKey}`,
             "OpenAI-Beta": "realtime=v1",
         },
     });
     session.modelConn.on("open", () => __awaiter(this, void 0, void 0, function* () {
-        var _a;
         const config = session.saved_config || {};
-        // Pull DB config
+        // Get agent configuration from database
         const agentConfig = yield (0, db_1.getActiveAgentConfig)();
-        const voice = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || "ash";
-        const instructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || "You are a helpful assistant.";
-        const temperature = (_a = agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) !== null && _a !== void 0 ? _a : 0.7;
-        const maxOutputTokens = agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens;
-        const turnDetection = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.turn_detection_type) || "server_vad";
+        const voice = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.voice) || 'ash';
+        const instructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
+        const temperature = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.temperature) || 0.7;
+        const maxTokens = agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.max_tokens;
+        const turnDetectionType = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.turn_detection_type) || 'server_vad';
         console.log('🤖 Twilio Agent Config:', {
             voice,
             instructions: instructions.substring(0, 100) + '...',
             temperature,
-            maxOutputTokens,
-            turnDetection
+            maxTokens,
+            turnDetectionType
         });
-        // IMPORTANT: don't let saved_config clobber your voice/params
-        // Apply saved_config FIRST, then your authoritative fields after.
-        const merged = Object.assign(Object.assign(Object.assign(Object.assign({}, config), { // ← anything from frontend, but may omit/old values
-            // authoritative values from DB come AFTER:
-            temperature }), (maxOutputTokens && { max_output_tokens: maxOutputTokens })), { voice, modalities: ["text", "audio"], turn_detection: { type: turnDetection }, instructions, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw", input_audio_transcription: { model: "whisper-1" } });
-        jsonSend(session.modelConn, { type: "session.update", session: merged });
-        jsonSend(session.modelConn, { type: "session.get" }); // echo to verify
+        jsonSend(session.modelConn, {
+            type: "session.update",
+            session: Object.assign(Object.assign(Object.assign({ modalities: ["text", "audio"], turn_detection: { type: turnDetectionType }, voice: voice, instructions: instructions, temperature: temperature }, (maxTokens && { max_response_output_tokens: maxTokens })), { input_audio_transcription: { model: "whisper-1" }, input_audio_format: "g711_ulaw", output_audio_format: "g711_ulaw" }), config),
+        });
     }));
-    session.modelConn.on("message", (raw) => {
-        const evt = parseMessage(raw);
-        console.log("🤖 Model message received:", evt === null || evt === void 0 ? void 0 : evt.type, evt);
-        if ((evt === null || evt === void 0 ? void 0 : evt.type) === "session.updated") {
-            console.log("Effective session from server:", evt.session); // should show voice, temp, max_output_tokens
-        }
-        handleModelMessage(raw);
-    });
+    session.modelConn.on("message", handleModelMessage);
     session.modelConn.on("error", closeModel);
     session.modelConn.on("close", closeModel);
 }
