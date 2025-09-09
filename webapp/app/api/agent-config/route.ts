@@ -54,7 +54,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate required fields
+    console.log('POST request body:', body);
     if (!body.name || !body.instructions || !body.voice) {
+      console.error('Missing required fields:', { 
+        name: body.name, 
+        instructions: body.instructions, 
+        voice: body.voice 
+      });
       return NextResponse.json(
         { error: 'Missing required fields: name, instructions, voice' },
         { status: 400 }
@@ -86,7 +92,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating agent configuration:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -96,8 +102,10 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('PUT request body:', body);
     
     if (!body.id) {
+      console.error('Missing configuration ID in PUT request');
       return NextResponse.json(
         { error: 'Missing configuration ID' },
         { status: 400 }
@@ -118,7 +126,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating agent configuration:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -151,6 +159,31 @@ export async function DELETE(request: NextRequest) {
     console.error('Error deleting agent configuration:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/agent-config - Reload configuration for active sessions
+export async function PATCH(request: NextRequest) {
+  try {
+    // Call the WebSocket server to reload configuration
+    const response = await fetch('http://localhost:8081/reload-config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`WebSocket server responded with ${response.status}`);
+    }
+
+    return NextResponse.json({ success: true, message: 'Configuration reloaded for active sessions' });
+  } catch (error) {
+    console.error('Error reloading configuration:', error);
+    return NextResponse.json(
+      { error: 'Failed to reload configuration for active sessions' },
       { status: 500 }
     );
   }

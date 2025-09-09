@@ -55,6 +55,7 @@ app.get("/tools", (req, res) => {
         parameters: tool.parameters,
     })));
 });
+// Note: reload configuration endpoint is disabled in baseline restore
 let currentCall = null;
 let currentLogs = null;
 let currentVoiceChat = null;
@@ -67,6 +68,7 @@ function broadcastToLogs(message) {
 // Make broadcastToLogs available globally
 global.broadcastToLogs = broadcastToLogs;
 wss.on("connection", (ws, req) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("🔌 NEW WEBSOCKET CONNECTION:", req.url);
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const parts = url.pathname.split("/").filter(Boolean);
     if (parts.length < 1) {

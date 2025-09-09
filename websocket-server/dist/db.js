@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDbClient = getDbClient;
 exports.query = query;
 exports.getActiveAgentConfig = getActiveAgentConfig;
+exports.getActiveAgentConfigLegacy = getActiveAgentConfigLegacy;
 exports.getEnabledToolDefinitions = getEnabledToolDefinitions;
 exports.testConnection = testConnection;
 exports.closePool = closePool;
@@ -63,8 +64,48 @@ function query(text, params) {
         }
     });
 }
-// Get active agent configuration
+// Get active agent configuration (returns proper DBAgentConfig type)
 function getActiveAgentConfig() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const result = yield query('SELECT * FROM agent_configs WHERE is_active = true ORDER BY updated_at DESC LIMIT 1');
+            if (result.rows.length === 0) {
+                console.log('No active agent configuration found in database');
+                return null;
+            }
+            const row = result.rows[0];
+            const config = {
+                id: row.id,
+                name: row.name,
+                instructions: row.instructions,
+                voice: row.voice,
+                model: row.model,
+                temperature: row.temperature ? parseFloat(row.temperature) : null,
+                max_tokens: row.max_tokens ? parseInt(row.max_tokens) : null,
+                input_audio_format: row.input_audio_format,
+                output_audio_format: row.output_audio_format,
+                turn_detection_type: row.turn_detection_type,
+                turn_detection_threshold: row.turn_detection_threshold ? parseFloat(row.turn_detection_threshold) : null,
+                turn_detection_prefix_padding_ms: row.turn_detection_prefix_padding_ms ? parseInt(row.turn_detection_prefix_padding_ms) : null,
+                turn_detection_silence_duration_ms: row.turn_detection_silence_duration_ms ? parseInt(row.turn_detection_silence_duration_ms) : null,
+                modalities: typeof row.modalities === 'string' ? JSON.parse(row.modalities) : row.modalities,
+                tools_enabled: row.tools_enabled,
+                enabled_tools: typeof row.enabled_tools === 'string' ? JSON.parse(row.enabled_tools) : row.enabled_tools,
+                is_active: row.is_active,
+                created_at: row.created_at,
+                updated_at: row.updated_at
+            };
+            console.log('✅ Loaded active agent configuration from database:', config.name);
+            return config;
+        }
+        catch (error) {
+            console.error('❌ Error fetching active agent configuration:', error);
+            return null;
+        }
+    });
+}
+// Legacy function for backward compatibility (deprecated)
+function getActiveAgentConfigLegacy() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const result = yield query('SELECT * FROM agent_configs WHERE is_active = true ORDER BY updated_at DESC LIMIT 1');
@@ -92,7 +133,7 @@ function getActiveAgentConfig() {
                 enabled_tools: typeof row.enabled_tools === 'string' ? JSON.parse(row.enabled_tools) : row.enabled_tools,
                 is_active: row.is_active
             };
-            console.log('✅ Loaded active agent configuration from database:', config.name);
+            console.log('✅ Loaded active agent configuration from database (legacy):', config.name);
             return config;
         }
         catch (error) {

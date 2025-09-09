@@ -284,7 +284,7 @@ export default function handleRealtimeEvent(
             type: "function_call",
             call_id: item.itemId || `call_${index}`,
             name: item.name,
-            arguments: JSON.stringify(item.arguments || {}),
+            params: item.arguments || {},
             status: "completed",
             timestamp: new Date().toLocaleTimeString(),
           });
@@ -295,7 +295,7 @@ export default function handleRealtimeEvent(
       // Smart update: merge with existing items instead of replacing
       setItems(prevItems => {
         const existingIds = new Set(prevItems.map(item => item.id));
-        const newItems = convertedItems.filter(item => !existingIds.has(item.id));
+        const newItems = convertedItems.filter((item: any) => !existingIds.has(item.id));
         
         // Only add new items, preserve existing ones
         if (newItems.length > 0) {

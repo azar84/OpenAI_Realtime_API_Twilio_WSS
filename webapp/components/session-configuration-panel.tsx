@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash, Check, AlertCircle } from "lucide-react";
 import { toolTemplates } from "@/lib/tool-templates";
@@ -25,10 +26,18 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   callStatus,
   onSave,
 }) => {
+  const [name, setName] = useState("Default Assistant");
   const [instructions, setInstructions] = useState(
     "You are a helpful assistant in a phone call."
   );
+  const [model, setModel] = useState("gpt-realtime");
   const [voice, setVoice] = useState("ash");
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxTokens, setMaxTokens] = useState(4096);
+  const [turnDetectionType, setTurnDetectionType] = useState("server_vad");
+  const [turnDetectionThreshold, setTurnDetectionThreshold] = useState(0.5);
+  const [turnDetectionPrefixPadding, setTurnDetectionPrefixPadding] = useState(300);
+  const [turnDetectionSilenceDuration, setTurnDetectionSilenceDuration] = useState(200);
   const [tools, setTools] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -55,8 +64,16 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           const config = await response.json();
           console.log("✅ Loaded configuration:", config);
           
+          setName(config.name || "Default Assistant");
           setInstructions(config.instructions || "You are a helpful assistant in a phone call.");
+          setModel(config.model || "gpt-realtime");
           setVoice(config.voice || "ash");
+          setTemperature(config.temperature || 0.7);
+          setMaxTokens(config.max_tokens || 4096);
+          setTurnDetectionType(config.turn_detection_type || "server_vad");
+          setTurnDetectionThreshold(config.turn_detection_threshold || 0.5);
+          setTurnDetectionPrefixPadding(config.turn_detection_prefix_padding_ms || 300);
+          setTurnDetectionSilenceDuration(config.turn_detection_silence_duration_ms || 200);
           
           // Convert enabled tools to the format expected by the tools state
           if (config.enabled_tools && config.enabled_tools.length > 0) {
@@ -113,8 +130,16 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     setSaveStatus("saving");
     try {
       await onSave({
+        name,
         instructions,
+        model,
         voice,
+        temperature,
+        max_tokens: maxTokens,
+        turn_detection_type: turnDetectionType,
+        turn_detection_threshold: turnDetectionThreshold,
+        turn_detection_prefix_padding_ms: turnDetectionPrefixPadding,
+        turn_detection_silence_duration_ms: turnDetectionSilenceDuration,
         tools: tools.map((tool) => JSON.parse(tool)),
       });
       setSaveStatus("saved");
@@ -200,7 +225,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   };
 
   return (
-    <Card className="flex flex-col h-full w-full mx-auto">
+    <Card className="flex flex-col h-full w-full mx-auto min-h-0">
       <CardHeader className="pb-0 px-4 sm:px-6">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
@@ -223,8 +248,8 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 p-3 sm:p-5">
-        <ScrollArea className="h-full">
+      <CardContent className="flex-1 p-3 sm:p-5 flex flex-col min-h-0">
+        <div className="flex-1 overflow-y-auto pr-2">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-2">
@@ -233,7 +258,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-4 sm:space-y-6 m-1">
+            <div className="space-y-4 sm:space-y-6 m-1 pb-8">
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">
                 Instructions
@@ -247,13 +272,47 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
             </div>
 
             <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Agent Name</label>
+              <Input
+                placeholder="Enter agent name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Model</label>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "gpt-4o-realtime-preview",
+                    "gpt-realtime-2025-08-28", 
+                    "gpt-realtime",
+                    "gpt-4o-realtime-preview-2025-06-03",
+                    "gpt-4o-realtime-preview-2024-12-17",
+                    "gpt-4o-realtime-preview-2024-10-01",
+                    "gpt-4o-mini-realtime-preview-2024-12-17",
+                    "gpt-4o-mini-realtime-preview"
+                  ].map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Voice</label>
               <Select value={voice} onValueChange={setVoice}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["ash", "ballad", "coral", "sage", "verse"].map((v) => (
+                  {["alloy", "ash", "ballad", "cedar", "coral", "echo", "marin", "sage", "shimmer", "verse"].map((v) => (
                     <SelectItem key={v} value={v}>
                       {v}
                     </SelectItem>
@@ -261,6 +320,87 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Temperature</label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  placeholder="0.7"
+                  value={temperature}
+                  onChange={(e) => setTemperature(parseFloat(e.target.value) || 0.7)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none">Max Tokens</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="8192"
+                  placeholder="4096"
+                  value={maxTokens}
+                  onChange={(e) => setMaxTokens(parseInt(e.target.value) || 4096)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none">Turn Detection</label>
+              <Select value={turnDetectionType} onValueChange={setTurnDetectionType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select turn detection" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (Manual)</SelectItem>
+                  <SelectItem value="server_vad">Server VAD (Silence-based)</SelectItem>
+                  <SelectItem value="semantic_vad">Semantic VAD (Model-based)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {turnDetectionType === "server_vad" && (
+              <div className="space-y-4 pl-4 border-l-2 border-gray-200">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none">Threshold (0-1)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    placeholder="0.5"
+                    value={turnDetectionThreshold}
+                    onChange={(e) => setTurnDetectionThreshold(parseFloat(e.target.value) || 0.5)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">Prefix Padding (ms)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="1000"
+                      placeholder="300"
+                      value={turnDetectionPrefixPadding}
+                      onChange={(e) => setTurnDetectionPrefixPadding(parseInt(e.target.value) || 300)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none">Silence Duration (ms)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="2000"
+                      placeholder="200"
+                      value={turnDetectionSilenceDuration}
+                      onChange={(e) => setTurnDetectionSilenceDuration(parseInt(e.target.value) || 200)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Tools</label>
@@ -309,27 +449,31 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </div>
             </div>
 
-            <Button
-              className="w-full mt-4"
-              onClick={handleSave}
-              disabled={saveStatus === "saving" || !hasUnsavedChanges}
-            >
-              {saveStatus === "saving" ? (
-                "Saving..."
-              ) : saveStatus === "saved" ? (
-                <span className="flex items-center">
-                  Saved Successfully
-                  <Check className="ml-2 h-4 w-4" />
-                </span>
-              ) : saveStatus === "error" ? (
-                "Error Saving"
-              ) : (
-                "Save Configuration"
-              )}
-            </Button>
           </div>
           )}
-        </ScrollArea>
+        </div>
+        
+        {/* Fixed Submit Button */}
+        <div className="mt-4 pt-4 border-t border-gray-200 bg-white">
+          <Button
+            className="w-full"
+            onClick={handleSave}
+            disabled={saveStatus === "saving" || !hasUnsavedChanges}
+          >
+            {saveStatus === "saving" ? (
+              "Saving..."
+            ) : saveStatus === "saved" ? (
+              <span className="flex items-center">
+                Saved Successfully
+                <Check className="ml-2 h-4 w-4" />
+              </span>
+            ) : saveStatus === "error" ? (
+              "Error Saving"
+            ) : (
+              "Save Configuration"
+            )}
+          </Button>
+        </div>
       </CardContent>
 
       <ToolConfigurationDialog

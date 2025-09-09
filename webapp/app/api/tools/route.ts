@@ -15,22 +15,5 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// GET /api/tools/[name] - Get specific tool by name
-export async function getToolByName(name: string) {
-  try {
-    const tool = await ToolDefinitionDB.getByName(name);
-    if (!tool) {
-      return NextResponse.json(
-        { error: 'Tool not found' },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json(tool);
-  } catch (error) {
-    console.error('Error fetching tool:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
+// Note: getToolByName function removed as it's not a valid Next.js route export
+// If needed, this should be implemented as a dynamic route: app/api/tools/[name]/route.ts

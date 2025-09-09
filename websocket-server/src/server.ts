@@ -57,6 +57,8 @@ app.get("/tools", (req, res) => {
   })));
 });
 
+// Note: reload configuration endpoint is disabled in baseline restore
+
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
 let currentVoiceChat: WebSocket | null = null;
@@ -72,6 +74,7 @@ function broadcastToLogs(message: any) {
 (global as any).broadcastToLogs = broadcastToLogs;
 
 wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
+  console.log("🔌 NEW WEBSOCKET CONNECTION:", req.url);
   const url = new URL(req.url || "", `http://${req.headers.host}`);
   const parts = url.pathname.split("/").filter(Boolean);
 

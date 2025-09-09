@@ -1,11 +1,13 @@
 class PCM16Processor extends AudioWorkletProcessor {
   constructor(options) {
     super();
-    this.inputSampleRate = 24000; // Default to 24kHz, will be updated in process()
+    // Use the audio context's actual sample rate passed from the renderer thread if provided,
+    // otherwise fall back to the global sampleRate available inside the worklet scope.
+    this.inputSampleRate = sampleRate || 48000; // typical default; will be refined on first process()
     this.targetSampleRate = (options && options.processorOptions && options.processorOptions.targetSampleRate) || 24000;
-    this._resampleRatio = 1; // Will be calculated in process()
+    this._resampleRatio = this.inputSampleRate / this.targetSampleRate;
     this._buffer = [];
-    console.log("🎵 PCM16Processor created with target sample rate:", this.targetSampleRate);
+    console.log("🎵 PCM16Processor created:", { inputSampleRate: this.inputSampleRate, targetSampleRate: this.targetSampleRate, ratio: this._resampleRatio });
   }
 
   // Simple linear resampler from inputSampleRate -> targetSampleRate
@@ -44,9 +46,10 @@ class PCM16Processor extends AudioWorkletProcessor {
     const channelData = input[0]; // mono
     if (!channelData || channelData.length === 0) return true;
 
-    // Update sample rate ratio if needed (first time)
-    if (this._resampleRatio === 1 && this.inputSampleRate !== this.targetSampleRate) {
-      this.inputSampleRate = sampleRate; // Get actual sample rate from AudioContext
+    // Ensure resample ratio reflects current worklet input sample rate
+    const currentInputSampleRate = sampleRate || this.inputSampleRate;
+    if (currentInputSampleRate !== this.inputSampleRate) {
+      this.inputSampleRate = currentInputSampleRate;
       this._resampleRatio = this.inputSampleRate / this.targetSampleRate;
       console.log("🎵 Updated sample rate ratio:", this.inputSampleRate, "->", this.targetSampleRate, "ratio:", this._resampleRatio);
     }

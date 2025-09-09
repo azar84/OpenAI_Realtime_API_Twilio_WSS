@@ -141,8 +141,10 @@ export class AgentConfigDB {
 
   // Update configuration
   static async update(id: number, config: Partial<AgentConfig>): Promise<AgentConfig | null> {
-    const fields = [];
-    const values = [];
+    console.log('🔧 Database update called with:', { id, config });
+    
+    const fields: string[] = [];
+    const values: any[] = [];
     let paramIndex = 1;
 
     // Build dynamic UPDATE query
@@ -162,12 +164,18 @@ export class AgentConfigDB {
     if (fields.length === 0) return null;
 
     values.push(id);
-    const result = await query(
-      `UPDATE agent_configs SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-      values
-    );
+    const queryString = `UPDATE agent_configs SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    console.log('🔧 Database query:', queryString);
+    console.log('🔧 Database values:', values);
     
-    return result.rows.length > 0 ? this.mapDbRowToConfig(result.rows[0]) : null;
+    try {
+      const result = await query(queryString, values);
+      console.log('✅ Database update successful');
+      return result.rows.length > 0 ? this.mapDbRowToConfig(result.rows[0]) : null;
+    } catch (error) {
+      console.error('❌ Database update error:', error);
+      throw error;
+    }
   }
 
   // Delete (soft delete by setting is_active = false)
@@ -187,14 +195,14 @@ export class AgentConfigDB {
       instructions: row.instructions,
       voice: row.voice,
       model: row.model,
-      temperature: row.temperature,
-      max_tokens: row.max_tokens,
+      temperature: row.temperature ? parseFloat(row.temperature) : undefined,
+      max_tokens: row.max_tokens ? parseInt(row.max_tokens) : undefined,
       input_audio_format: row.input_audio_format,
       output_audio_format: row.output_audio_format,
       turn_detection_type: row.turn_detection_type,
-      turn_detection_threshold: row.turn_detection_threshold,
-      turn_detection_prefix_padding_ms: row.turn_detection_prefix_padding_ms,
-      turn_detection_silence_duration_ms: row.turn_detection_silence_duration_ms,
+      turn_detection_threshold: row.turn_detection_threshold ? parseFloat(row.turn_detection_threshold) : undefined,
+      turn_detection_prefix_padding_ms: row.turn_detection_prefix_padding_ms ? parseInt(row.turn_detection_prefix_padding_ms) : undefined,
+      turn_detection_silence_duration_ms: row.turn_detection_silence_duration_ms ? parseInt(row.turn_detection_silence_duration_ms) : undefined,
       modalities: typeof row.modalities === 'string' ? JSON.parse(row.modalities) : row.modalities,
       tools_enabled: row.tools_enabled,
       enabled_tools: typeof row.enabled_tools === 'string' ? JSON.parse(row.enabled_tools) : row.enabled_tools,
@@ -212,7 +220,7 @@ export class ToolDefinitionDB {
     const result = await query(
       'SELECT * FROM tool_definitions WHERE enabled = true ORDER BY name'
     );
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       ...row,
       parameters: typeof row.parameters === 'string' ? JSON.parse(row.parameters) : row.parameters
     }));

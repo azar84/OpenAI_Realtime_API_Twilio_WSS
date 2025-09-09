@@ -60,15 +60,25 @@ const CallInterface = () => {
           },
           body: JSON.stringify({
             id: configId,
+            name: config.name,
             instructions: config.instructions,
+            model: config.model,
             voice: config.voice,
+            temperature: config.temperature,
+            max_tokens: config.max_tokens,
+            turn_detection_type: config.turn_detection_type,
+            turn_detection_threshold: config.turn_detection_threshold,
+            turn_detection_prefix_padding_ms: config.turn_detection_prefix_padding_ms,
+            turn_detection_silence_duration_ms: config.turn_detection_silence_duration_ms,
             enabled_tools: config.tools?.map((tool: any) => tool.function?.name || tool.name) || [],
             tools_enabled: config.tools && config.tools.length > 0,
           }),
         });
         
         if (!updateResponse.ok) {
-          throw new Error('Failed to update configuration');
+          const errorData = await updateResponse.json();
+          console.error('Update response error:', errorData);
+          throw new Error(`Failed to update configuration: ${errorData.error || updateResponse.statusText}`);
         }
         
         console.log("✅ Configuration updated in database");
@@ -80,9 +90,15 @@ const CallInterface = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            name: 'Agent Configuration',
+            name: config.name || 'Agent Configuration',
             instructions: config.instructions,
             voice: config.voice,
+            temperature: config.temperature,
+            max_tokens: config.max_tokens,
+            turn_detection_type: config.turn_detection_type,
+            turn_detection_threshold: config.turn_detection_threshold,
+            turn_detection_prefix_padding_ms: config.turn_detection_prefix_padding_ms,
+            turn_detection_silence_duration_ms: config.turn_detection_silence_duration_ms,
             enabled_tools: config.tools?.map((tool: any) => tool.function?.name || tool.name) || [],
             tools_enabled: config.tools && config.tools.length > 0,
             is_active: true,
@@ -90,10 +106,30 @@ const CallInterface = () => {
         });
         
         if (!createResponse.ok) {
-          throw new Error('Failed to create configuration');
+          const errorData = await createResponse.json();
+          console.error('Create response error:', errorData);
+          throw new Error(`Failed to create configuration: ${errorData.error || createResponse.statusText}`);
         }
         
         console.log("✅ New configuration created in database");
+      }
+      
+      // 2. Reload configuration for active sessions
+      try {
+        const reloadResponse = await fetch('/api/agent-config', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (reloadResponse.ok) {
+          console.log("✅ Configuration reloaded for active sessions");
+        } else {
+          console.warn("⚠️ Failed to reload configuration for active sessions");
+        }
+      } catch (reloadError) {
+        console.warn("⚠️ Error reloading configuration for active sessions:", reloadError);
       }
       
       // 2. Send to WebSocket server for real-time update
