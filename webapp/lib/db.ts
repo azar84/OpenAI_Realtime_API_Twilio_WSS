@@ -63,6 +63,7 @@ export interface AgentConfig {
   modalities: string[];
   tools_enabled: boolean;
   enabled_tools: string[];
+  languages: string[];
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -114,8 +115,8 @@ export class AgentConfigDB {
         input_audio_format, output_audio_format, turn_detection_type,
         turn_detection_threshold, turn_detection_prefix_padding_ms, 
         turn_detection_silence_duration_ms, modalities, tools_enabled, 
-        enabled_tools, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        enabled_tools, languages, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         config.name,
@@ -133,6 +134,7 @@ export class AgentConfigDB {
         JSON.stringify(config.modalities),
         config.tools_enabled,
         JSON.stringify(config.enabled_tools),
+        JSON.stringify(config.languages || []),
         config.is_active
       ]
     );
@@ -150,7 +152,7 @@ export class AgentConfigDB {
     // Build dynamic UPDATE query
     Object.entries(config).forEach(([key, value]) => {
       if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && value !== undefined) {
-        if (key === 'modalities' || key === 'enabled_tools') {
+        if (key === 'modalities' || key === 'enabled_tools' || key === 'languages') {
           fields.push(`${key} = $${paramIndex}`);
           values.push(JSON.stringify(value));
         } else {
@@ -206,6 +208,7 @@ export class AgentConfigDB {
       modalities: typeof row.modalities === 'string' ? JSON.parse(row.modalities) : row.modalities,
       tools_enabled: row.tools_enabled,
       enabled_tools: typeof row.enabled_tools === 'string' ? JSON.parse(row.enabled_tools) : row.enabled_tools,
+      languages: typeof row.languages === 'string' ? JSON.parse(row.languages) : (row.languages || []),
       is_active: row.is_active,
       created_at: row.created_at,
       updated_at: row.updated_at
