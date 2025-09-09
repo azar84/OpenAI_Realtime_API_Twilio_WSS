@@ -28,8 +28,8 @@ function handleCallConnection(ws, apiKey) {
             const toolsToUse = agent_tools_1.agentTools.filter(tool => enabledTools.includes(tool.name));
             // Create agent with configuration from database
             const twilioAgentName = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.name) || 'Twilio Agent';
-            const twilioBaseInstructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
-            const twilioInstructions = `Your name is ${twilioAgentName}. ${twilioBaseInstructions}`;
+            const twilioInstructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
+            console.log('🤖 Twilio Agent Instructions:', twilioInstructions);
             const agent = new realtime_1.RealtimeAgent({
                 name: twilioAgentName,
                 instructions: twilioInstructions,
@@ -114,8 +114,8 @@ function handleVoiceChatConnection(ws, apiKey) {
             const toolsToUse = agent_tools_1.agentTools.filter(tool => enabledTools.includes(tool.name));
             // Create agent with configuration from database
             const voiceAgentName = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.name) || 'Voice Chat Agent';
-            const voiceBaseInstructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
-            const voiceInstructions = `Your name is ${voiceAgentName}. ${voiceBaseInstructions}`;
+            const voiceInstructions = (agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.instructions) || 'You are a helpful assistant.';
+            console.log('🤖 Voice Chat Agent Instructions:', voiceInstructions);
             const agent = new realtime_1.RealtimeAgent({
                 name: voiceAgentName,
                 instructions: voiceInstructions,
