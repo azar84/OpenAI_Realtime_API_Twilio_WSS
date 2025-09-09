@@ -52,6 +52,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasLoadedInitially, setHasLoadedInitially] = useState(false);
 
   // Custom hook to fetch backend tools every 3 seconds
   const backendTools = useBackendTools("http://localhost:8081/tools", 3000);
@@ -104,17 +105,22 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           
           // Load selected languages from database
           if (config.languages && Array.isArray(config.languages)) {
+            console.log('📥 Loading languages from database:', config.languages);
             setSelectedLanguages(config.languages);
           } else {
+            console.log('📥 No languages in database, setting empty array');
             setSelectedLanguages([]);
           }
           
           setHasUnsavedChanges(false);
+          setHasLoadedInitially(true);
         } else {
           console.log("No active configuration found, using defaults");
+          setHasLoadedInitially(true);
         }
       } catch (error) {
         console.error("❌ Error loading configuration:", error);
+        setHasLoadedInitially(true);
       } finally {
         setIsLoading(false);
       }
@@ -124,9 +130,12 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   }, []);
 
   // Track changes to determine if there are unsaved modifications
+  // Only set unsaved changes if we're not in the initial loading phase
   useEffect(() => {
-    setHasUnsavedChanges(true);
-  }, [instructions, voice, tools, selectedLanguages]);
+    if (hasLoadedInitially) {
+      setHasUnsavedChanges(true);
+    }
+  }, [instructions, voice, tools, selectedLanguages, hasLoadedInitially]);
 
   // Reset save status after a delay when saved
   useEffect(() => {
@@ -148,6 +157,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         ? `${baseInstructions}\n\n${languageBlock}`
         : baseInstructions;
 
+      console.log('💾 Saving with languages:', selectedLanguages);
       await onSave({
         name,
         instructions: finalInstructions,
@@ -185,13 +195,13 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
 
   const toggleLanguage = (lang: string, checked: boolean | string) => {
     const isChecked = checked === true;
+    console.log('🔄 Toggling language:', { lang, isChecked, currentSelected: selectedLanguages, hasLoadedInitially });
     setSelectedLanguages((prev) => {
-      if (isChecked) {
-        // add if not present, preserving order
-        return prev.includes(lang) ? prev : [...prev, lang];
-      }
-      // remove
-      return prev.filter((l) => l !== lang);
+      const newSelection = isChecked
+        ? (prev.includes(lang) ? prev : [...prev, lang])
+        : prev.filter((l) => l !== lang);
+      console.log('🔄 New language selection:', newSelection);
+      return newSelection;
     });
   };
 
