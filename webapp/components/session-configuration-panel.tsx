@@ -68,6 +68,10 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         if (response.ok) {
           const config = await response.json();
           console.log("✅ Loaded configuration:", config);
+          console.log("🔍 Language data from API:", {
+            primary: config.primary_language,
+            secondary: config.secondary_languages
+          });
           
           setName(config.name || "Default Assistant");
           setInstructions(config.instructions || "You are a helpful assistant in a phone call.");
@@ -109,8 +113,11 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
             primary: config.primary_language, 
             secondary: config.secondary_languages 
           });
-          setPrimaryLanguage(config.primary_language || "");
-          setSecondaryLanguages(config.secondary_languages || []);
+          const primaryLang = config.primary_language || "";
+          const secondaryLangs = config.secondary_languages || [];
+          console.log('📥 Setting state with:', { primaryLang, secondaryLangs });
+          setPrimaryLanguage(primaryLang);
+          setSecondaryLanguages(secondaryLangs);
           
           setHasUnsavedChanges(false);
           setHasLoadedInitially(true);
@@ -158,7 +165,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         : baseInstructions;
 
       console.log('💾 Saving with languages:', { primary: primaryLanguage, secondary: secondaryLanguages });
-      await onSave({
+      const saveData = {
         name,
         instructions: finalInstructions,
         model,
@@ -172,7 +179,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
         tools: tools.map((tool) => JSON.parse(tool)),
         primary_language: primaryLanguage,
         secondary_languages: secondaryLanguages,
-      });
+      };
+      console.log('💾 Full save data:', saveData);
+      await onSave(saveData);
       setSaveStatus("saved");
       setHasUnsavedChanges(false);
     } catch (error) {

@@ -72,6 +72,8 @@ const CallInterface = () => {
             turn_detection_silence_duration_ms: config.turn_detection_silence_duration_ms,
             enabled_tools: config.tools?.map((tool: any) => tool.function?.name || tool.name) || [],
             tools_enabled: config.tools && config.tools.length > 0,
+            primary_language: config.primary_language,
+            secondary_languages: config.secondary_languages,
           }),
         });
         
@@ -101,6 +103,8 @@ const CallInterface = () => {
             turn_detection_silence_duration_ms: config.turn_detection_silence_duration_ms,
             enabled_tools: config.tools?.map((tool: any) => tool.function?.name || tool.name) || [],
             tools_enabled: config.tools && config.tools.length > 0,
+            primary_language: config.primary_language,
+            secondary_languages: config.secondary_languages,
             is_active: true,
           }),
         });
