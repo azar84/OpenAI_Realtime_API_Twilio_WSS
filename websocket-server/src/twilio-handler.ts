@@ -17,9 +17,17 @@ interface Session {
 let session: Session = {};
 
 export function handleCallConnection(ws: WebSocket, openAIApiKey: string) {
-  cleanupConnection(session.twilioConn);
+  // Clean up any existing connections and reset session
+  closeAllConnections();
+  
+  // Initialize fresh session for new call
   session.twilioConn = ws;
   session.openAIApiKey = openAIApiKey;
+  session.streamSid = undefined;
+  session.lastAssistantItem = undefined;
+  session.responseStartTimestamp = undefined;
+  session.latestMediaTimestamp = undefined;
+  session.saved_config = undefined;
 
   ws.on("message", handleTwilioMessage);
   ws.on("error", ws.close);
