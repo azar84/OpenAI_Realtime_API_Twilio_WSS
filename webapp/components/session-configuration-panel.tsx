@@ -481,6 +481,10 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       sections.push("*[Configure languages above]*");
     }
     
+    // Instructions section
+    sections.push("\n# Instructions");
+    sections.push("*[Main instructions will be added here]*");
+    
     return sections.join("\n");
   };
 
