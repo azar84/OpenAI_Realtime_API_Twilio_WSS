@@ -657,7 +657,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </label>
               <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-96 overflow-y-auto" key={previewKey}>
                 <div className="prose prose-sm max-w-none">
-                  {generatePersonalityPreview()}
+                  {generatePersonalityPreview}
                 </div>
               </div>
               <p className="text-xs text-gray-500">
