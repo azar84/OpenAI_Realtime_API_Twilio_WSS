@@ -184,20 +184,20 @@ const CallInterface = () => {
         // Convert personality config to instructions format with agent config
         const personalityInstructions = generatePersonalityInstructions(personality, agentConfig);
         
-        // Combine personality instructions with main instructions
-        let combinedInstructions = '';
+        // Clean up existing instructions by removing any previous personality sections
+        let cleanInstructions = currentInstructions;
         
-        // Check if instructions already contain "# Instructions" section
-        const instructionsIndex = currentInstructions.indexOf('# Instructions');
+        // Remove any existing "# Personality & Tone" sections and everything before "# Instructions"
+        const instructionsIndex = cleanInstructions.indexOf('# Instructions');
         if (instructionsIndex !== -1) {
-          // Insert personality section before the existing Instructions section
-          const beforeInstructions = currentInstructions.substring(0, instructionsIndex).trim();
-          const afterInstructions = currentInstructions.substring(instructionsIndex);
-          combinedInstructions = `${beforeInstructions}\n\n${personalityInstructions}\n\n${afterInstructions}`;
-        } else {
-          // Append personality section to existing instructions
-          combinedInstructions = `${currentInstructions}\n\n${personalityInstructions}`;
+          // Keep only the content after the last "# Instructions" section
+          const instructionsSections = cleanInstructions.split('# Instructions');
+          const lastInstructionsSection = instructionsSections[instructionsSections.length - 1].trim();
+          cleanInstructions = lastInstructionsSection;
         }
+        
+        // Combine personality instructions with clean main instructions
+        const combinedInstructions = `${personalityInstructions}\n\n# Instructions\n\n${cleanInstructions}`;
         
         // Update existing configuration with personality
         console.log('🔧 Saving combined instructions to database:', {
