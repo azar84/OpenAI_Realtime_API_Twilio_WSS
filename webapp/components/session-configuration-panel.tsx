@@ -129,10 +129,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           console.log('📥 Setting state with:', { primaryLang, secondaryLangs });
           
           // Set languages immediately
+          console.log('📥 About to set languages:', { primaryLang, secondaryLangs });
           setPrimaryLanguage(primaryLang);
           setSecondaryLanguages(secondaryLangs);
-          
-          // Debug: Check state immediately after setting
           console.log('📥 Languages set, checking state...');
           
           // Debug: Check state after a short delay
@@ -301,6 +300,13 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   };
 
   const generatePersonalityPreview = useMemo(() => {
+    console.log('🎭 generatePersonalityPreview called with:', { 
+      primaryLanguage, 
+      secondaryLanguages, 
+      name,
+      personalityConfig: !!personalityConfig 
+    });
+    
     const sections = [];
     
     // Add Personality & Tone section
@@ -498,6 +504,13 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       
       // Language section
       sections.push("\n## Language");
+      console.log('🎭 Language section - checking values:', { 
+        primaryLanguage, 
+        secondaryLanguages, 
+        hasPrimary: !!primaryLanguage,
+        hasSecondary: !!(secondaryLanguages && secondaryLanguages.length > 0)
+      });
+      
       if (primaryLanguage || (secondaryLanguages && secondaryLanguages.length > 0)) {
         let languageText = "";
         if (primaryLanguage) {
@@ -511,12 +524,15 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           languageText += ". If the user wants to switch to another language you support, or you feel the user is not comfortable speaking the language you talk with, you can switch to their preferred language.";
         }
         
+        console.log('🎭 Generated language text:', languageText);
+        
         if (languageText) {
           sections.push(languageText);
         } else {
           sections.push("*[Configure languages above]*");
         }
       } else {
+        console.log('🎭 No languages found, showing placeholder');
         sections.push("*[Configure languages above]*");
       }
     }
