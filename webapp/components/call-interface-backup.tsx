@@ -15,26 +15,8 @@ const CallInterface = () => {
   const [callStatus, setCallStatus] = useState("disconnected");
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [personalityConfig, setPersonalityConfig] = useState<any>(null);
+  const [liveInstructions, setLiveInstructions] = useState<string>("");
   const [activeTab, setActiveTab] = useState("config");
-
-  // Load personality config on mount
-  useEffect(() => {
-    loadPersonalityConfig();
-  }, []);
-
-  const loadPersonalityConfig = async () => {
-    try {
-      const response = await fetch('/api/agent-config?active=true');
-      if (response.ok) {
-        const config = await response.json();
-        if (config.personality_config) {
-          setPersonalityConfig(config.personality_config);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading personality config:", error);
-    }
-  };
 
   useEffect(() => {
     if (allConfigsReady && !ws) {
@@ -60,6 +42,28 @@ const CallInterface = () => {
       setWs(newWs);
     }
   }, [allConfigsReady, ws]);
+
+  // Load live instructions and personality config on component mount
+  useEffect(() => {
+    loadLiveInstructions();
+    loadPersonalityConfig();
+  }, []);
+
+  // Function to load personality config from database
+  const loadPersonalityConfig = async () => {
+    try {
+      const response = await fetch('/api/agent-config?active=true');
+      if (response.ok) {
+        const config = await response.json();
+        console.log("🔍 Loaded personality config from DB:", config.personality_config);
+        if (config.personality_config) {
+          setPersonalityConfig(config.personality_config);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading personality config:", error);
+    }
+  };
 
   const handleSaveConfiguration = async (config: any) => {
     try {
@@ -187,74 +191,20 @@ const CallInterface = () => {
     }
   };
 
-  const handleSavePersonality = async (personality: any) => {
+  // Function to load live instructions from database
+  const loadLiveInstructions = async () => {
     try {
-      // Get current active config to update it
-      const activeConfigResponse = await fetch('/api/agent-config?active=true');
-      let configId;
-      let currentInstructions = '';
-      let agentConfig = null;
-      
-      if (activeConfigResponse.ok) {
-        agentConfig = await activeConfigResponse.json();
-        configId = agentConfig.id;
-        currentInstructions = agentConfig.instructions || '';
-        
-        // Convert personality config to instructions format with agent config
-        const personalityInstructions = generatePersonalityInstructions(personality, agentConfig);
-        
-        // Clean up existing instructions by removing any previous personality sections
-        let cleanInstructions = currentInstructions;
-        
-        // Remove any existing "# Personality & Tone" sections and everything before "# Instructions"
-        const instructionsIndex = cleanInstructions.indexOf('# Instructions');
-        if (instructionsIndex !== -1) {
-          // Keep only the content after the last "# Instructions" section
-          const instructionsSections = cleanInstructions.split('# Instructions');
-          const lastInstructionsSection = instructionsSections[instructionsSections.length - 1].trim();
-          cleanInstructions = lastInstructionsSection;
-        }
-        
-        // Combine personality instructions with clean main instructions
-        const combinedInstructions = `${personalityInstructions}\n\n# Instructions\n\n${cleanInstructions}`;
-        
-        // Update existing configuration with personality
-        console.log('🔧 Saving combined instructions to database:', {
-          id: configId,
-          personality_config: personality,
-          personality_instructions: personalityInstructions,
-          instructions: combinedInstructions.substring(0, 200) + '...' // Log first 200 chars
-        });
-        
-        const updateResponse = await fetch('/api/agent-config', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: configId,
-            personality_config: personality,
-            personality_instructions: personalityInstructions,
-            instructions: combinedInstructions,
-          }),
-        });
-        
-        if (!updateResponse.ok) {
-          throw new Error('Failed to save personality configuration');
-        }
-        
-        // Verify what was saved to database
-        const savedConfig = await updateResponse.json();
-        console.log("✅ Personality configuration saved and integrated into instructions");
-        console.log("🔍 Saved instructions preview:", savedConfig.instructions?.substring(0, 200) + '...');
-        
-        setPersonalityConfig(personality);
+      const response = await fetch('/api/agent-config?active=true');
+      if (response.ok) {
+        const config = await response.json();
+        setLiveInstructions(config.instructions || "");
       }
     } catch (error) {
-      console.error("❌ Error saving personality configuration:", error);
+      console.error("Error loading live instructions:", error);
     }
   };
 
+  // Function to generate complete personality instructions
   const generatePersonalityInstructions = (personality: any, agentConfig: any) => {
     const sections = [];
     
@@ -262,8 +212,8 @@ const CallInterface = () => {
     sections.push("# Personality & Tone");
     
     // Identity section
+    sections.push("## Identity");
     if (personality.identity) {
-      sections.push("## Identity");
       let identityText = `You are a ${personality.identity.toLowerCase()} who customers trust for quick, reliable help. You sound approachable and knowledgeable, like someone they've known for years.`;
       
       // Add name if available
@@ -272,17 +222,21 @@ const CallInterface = () => {
       }
       
       sections.push(identityText);
+    } else {
+      sections.push("*[Select an identity in Personality tab]*");
     }
     
     // Task section
+    sections.push("## Task");
     if (personality.task) {
-      sections.push("## Task");
       sections.push(`Your job is to ${personality.task.toLowerCase()}. You ask simple, clear questions, guide them step by step, and provide solutions or escalate when necessary.`);
+    } else {
+      sections.push("*[Select a task in Personality tab]*");
     }
     
     // Demeanor section
+    sections.push("## Demeanor");
     if (personality.demeanor) {
-      sections.push("## Demeanor");
       const demeanorText = personality.demeanor.toLowerCase();
       if (demeanorText.includes('empathetic')) {
         sections.push("Empathetic — you show that you care about the user's frustration and reassure them while helping.");
@@ -297,11 +251,13 @@ const CallInterface = () => {
       } else {
         sections.push(`${personality.demeanor} — you approach each interaction with this mindset.`);
       }
+    } else {
+      sections.push("*[Select a demeanor in Personality tab]*");
     }
     
     // Tone section
+    sections.push("## Tone");
     if (personality.tone) {
-      sections.push("## Tone");
       const toneText = personality.tone.toLowerCase();
       if (toneText.includes('warm and conversational')) {
         sections.push("Warm and conversational, with a natural flow to your speech.");
@@ -314,11 +270,13 @@ const CallInterface = () => {
       } else {
         sections.push(`${personality.tone} — you communicate with this voice style.`);
       }
+    } else {
+      sections.push("*[Select a tone in Personality tab]*");
     }
     
     // Enthusiasm section
+    sections.push("## Level of Enthusiasm");
     if (personality.enthusiasm) {
-      sections.push("## Level of Enthusiasm");
       const enthusiasmText = personality.enthusiasm.toLowerCase();
       if (enthusiasmText.includes('engaged but measured')) {
         sections.push("Engaged but measured — you sound attentive and interested, without going over the top.");
@@ -331,11 +289,13 @@ const CallInterface = () => {
       } else {
         sections.push(`${personality.enthusiasm} — you express this level of enthusiasm in your responses.`);
       }
+    } else {
+      sections.push("*[Select an enthusiasm level in Personality tab]*");
     }
     
     // Formality section
+    sections.push("## Level of Formality");
     if (personality.formality) {
-      sections.push("## Level of Formality");
       const formalityText = personality.formality.toLowerCase();
       if (formalityText.includes('relaxed professional')) {
         sections.push("Relaxed professional — polite, clear, and respectful, but not overly stiff.");
@@ -348,62 +308,70 @@ const CallInterface = () => {
       } else {
         sections.push(`${personality.formality} — you maintain this level of formality.`);
       }
+    } else {
+      sections.push("*[Select a formality level in Personality tab]*");
     }
     
     // Emotion section
+    sections.push("## Level of Emotion");
     if (personality.emotion) {
-      sections.push("## Level of Emotion");
       const emotionText = personality.emotion.toLowerCase();
       if (emotionText.includes('compassionate and warm')) {
-        sections.push("Compassionate and warm — you acknowledge pain points and offer encouragement.");
-      } else if (emotionText.includes('very expressive')) {
-        sections.push("Very expressive — you show your emotions clearly and animatedly.");
-      } else if (emotionText.includes('encouraging and supportive')) {
-        sections.push("Encouraging and supportive — you focus on building the user's confidence.");
-      } else if (emotionText.includes('neutral, matter-of-fact')) {
-        sections.push("Neutral, matter-of-fact — you present information clearly without emotional coloring.");
+        sections.push("Compassionate and warm — you show genuine care and understanding in your responses.");
+      } else if (emotionText.includes('neutral and professional')) {
+        sections.push("Neutral and professional — you maintain a balanced, business-like approach.");
+      } else if (emotionText.includes('enthusiastic and encouraging')) {
+        sections.push("Enthusiastic and encouraging — you bring positive energy and motivation to interactions.");
+      } else if (emotionText.includes('calm and reassuring')) {
+        sections.push("Calm and reassuring — you provide a steady, comforting presence.");
       } else {
-        sections.push(`${personality.emotion} — you express this level of emotion in your communication.`);
+        sections.push(`${personality.emotion} — you express this level of emotion in your responses.`);
       }
+    } else {
+      sections.push("*[Select an emotion level in Personality tab]*");
     }
     
     // Filler Words section
+    sections.push("## Filler Words");
     if (personality.fillerWords) {
-      sections.push("## Filler Words");
       const fillerText = personality.fillerWords.toLowerCase();
-      if (fillerText.includes('occasionally')) {
-        sections.push("Occasionally use natural fillers (\"hm,\" \"uh\") to sound more human, but not excessively.");
-      } else if (fillerText.includes('none')) {
-        sections.push("Avoid filler words — speak clearly and directly without unnecessary sounds.");
-      } else if (fillerText.includes('often')) {
-        sections.push("Use filler words frequently — this makes you sound more natural and conversational.");
-      } else if (fillerText.includes('rare')) {
-        sections.push("Use filler words rarely — only when it feels natural, like \"hm\" when thinking.");
+      if (fillerText.includes('minimal use')) {
+        sections.push("Minimal use of filler words — you speak clearly and directly without unnecessary pauses.");
+      } else if (fillerText.includes('natural use')) {
+        sections.push("Natural use of filler words — you speak conversationally with occasional 'um', 'uh', or 'you know'.");
+      } else if (fillerText.includes('frequent use')) {
+        sections.push("Frequent use of filler words — you speak naturally with common conversational fillers.");
+      } else if (fillerText.includes('no filler words')) {
+        sections.push("No filler words — you speak with complete clarity and precision.");
       } else {
-        sections.push(`${personality.fillerWords} — you use this approach to filler words in your speech.`);
+        sections.push(`${personality.fillerWords} — you use filler words in this manner.`);
       }
+    } else {
+      sections.push("*[Select a filler word style in Personality tab]*");
     }
     
     // Pacing section
+    sections.push("## Pacing");
     if (personality.pacing) {
-      sections.push("## Pacing");
       const pacingText = personality.pacing.toLowerCase();
-      if (pacingText.includes('medium steady')) {
-        sections.push("Medium steady — keep a normal conversation rhythm, neither rushed nor too slow.");
-      } else if (pacingText.includes('very fast')) {
-        sections.push("Very fast and energetic — you speak quickly with high energy.");
+      if (pacingText.includes('moderate pace')) {
+        sections.push("Moderate pace — you speak at a comfortable speed that's easy to follow.");
       } else if (pacingText.includes('slow and deliberate')) {
         sections.push("Slow and deliberate — you take your time to ensure clarity and understanding.");
-      } else if (pacingText.includes('variable')) {
-        sections.push("Variable — you adjust your pace based on the situation, faster when excited, slower when serious.");
+      } else if (pacingText.includes('quick and efficient')) {
+        sections.push("Quick and efficient — you provide information rapidly while maintaining clarity.");
+      } else if (pacingText.includes('varies based on context')) {
+        sections.push("Varies based on context — you adjust your speaking pace based on the situation and user needs.");
       } else {
-        sections.push(`${personality.pacing} — you speak with this pacing style.`);
+        sections.push(`${personality.pacing} — you maintain this speaking pace.`);
       }
+    } else {
+      sections.push("*[Select a pacing style in Personality tab]*");
     }
     
     // Other Details section
+    sections.push("## Other Details");
     if (personality.otherDetails && personality.otherDetails.length > 0) {
-      sections.push("## Other Details");
       const details = personality.otherDetails.map((detail: string) => {
         if (detail.includes('check for understanding')) {
           return "Always check for understanding before moving on. For example, after explaining a step, say \"Does that make sense?\" or \"Were you able to follow that?\" before continuing.";
@@ -426,12 +394,13 @@ const CallInterface = () => {
         }
       });
       sections.push(details.join(" "));
+    } else {
+      sections.push("*[Select other details in Personality tab]*");
     }
     
-    // Language section (now from personality config)
+    // Language section
+    sections.push("## Language");
     if (personality.primaryLanguage || (personality.secondaryLanguages && personality.secondaryLanguages.length > 0)) {
-      sections.push("## Language");
-      
       let languageText = "";
       if (personality.primaryLanguage) {
         languageText = `You speak ${personality.primaryLanguage} as your primary language`;
@@ -446,21 +415,84 @@ const CallInterface = () => {
       
       if (languageText) {
         sections.push(languageText);
+      } else {
+        sections.push("*[Select languages in Personality tab]*");
       }
+    } else {
+      sections.push("*[Select languages in Personality tab]*");
     }
     
-    // Add Instructions section header and instructions from personality
+    // Instructions section
     sections.push("\n# Instructions");
-    
-    // Add instructions from personality config
     if (personality.instructions && personality.instructions.length > 0) {
       personality.instructions.forEach((instruction: string) => {
         sections.push(`- ${instruction}`);
       });
+    } else {
+      sections.push("*[Add instructions in Personality tab]*");
     }
     
     return sections.join("\n\n");
   };
+
+  const handleSavePersonality = async (personality: any) => {
+    try {
+      // Get current active config to update it
+      const activeConfigResponse = await fetch('/api/agent-config?active=true');
+      let configId;
+      let currentInstructions = '';
+      let agentConfig = null;
+      
+      if (activeConfigResponse.ok) {
+        agentConfig = await activeConfigResponse.json();
+        configId = agentConfig.id;
+        currentInstructions = agentConfig.instructions || '';
+        
+        // Generate complete personality instructions
+        const personalityInstructions = generatePersonalityInstructions(personality, agentConfig);
+        
+        // Update existing configuration with personality, languages, and instructions
+        console.log('🔧 Saving updated instructions to database:', {
+          id: configId,
+          personality_config: personality,
+          primary_language: personality.primaryLanguage,
+          secondary_languages: personality.secondaryLanguages,
+          instructions: personalityInstructions.substring(0, 200) + '...' // Log first 200 chars
+        });
+        
+        const updateResponse = await fetch('/api/agent-config', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: configId,
+            personality_config: personality,
+            primary_language: personality.primaryLanguage || '',
+            secondary_languages: personality.secondaryLanguages || [],
+            instructions: personalityInstructions,
+          }),
+        });
+        
+        if (!updateResponse.ok) {
+          throw new Error('Failed to save personality configuration');
+        }
+        
+        // Verify what was saved to database
+        const savedConfig = await updateResponse.json();
+        console.log("✅ Personality configuration saved and integrated into instructions");
+        console.log("🔍 Saved instructions preview:", savedConfig.instructions?.substring(0, 200) + '...');
+        
+        setPersonalityConfig(personality);
+        
+        // Update live instructions with the saved content
+        setLiveInstructions(savedConfig.instructions || "");
+      }
+    } catch (error) {
+      console.error("❌ Error saving personality configuration:", error);
+    }
+  };
+
 
   return (
     <div className="h-screen bg-white flex flex-col">
@@ -484,6 +516,7 @@ const CallInterface = () => {
           onSaveConfiguration={handleSaveConfiguration}
           onSavePersonality={handleSavePersonality}
           personalityConfig={personalityConfig}
+          liveInstructions={liveInstructions}
         />
       </div>
     </div>
