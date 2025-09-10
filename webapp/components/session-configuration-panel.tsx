@@ -130,6 +130,14 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
           setPrimaryLanguage(primaryLang);
           setSecondaryLanguages(secondaryLangs);
           
+          // Debug: Check state after setting
+          setTimeout(() => {
+            console.log('📥 State after setting languages:', { 
+              primaryLanguage, 
+              secondaryLanguages 
+            });
+          }, 100);
+          
           // Load personality config
           if (config.personality_config) {
             setPersonalityConfig(config.personality_config);
@@ -706,6 +714,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               {/* Primary Language Selection */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-gray-600">Primary Language</label>
+                <div className="text-xs text-gray-500">Debug: primaryLanguage = "{primaryLanguage}"</div>
                 <Select value={primaryLanguage} onValueChange={setPrimaryLanguage}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select primary language" />
@@ -723,6 +732,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               {/* Secondary Languages Selection */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-gray-600">Secondary Languages (Optional)</label>
+                <div className="text-xs text-gray-500">Debug: secondaryLanguages = {JSON.stringify(secondaryLanguages)}</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
                   {LANGUAGE_OPTIONS.map((lang) => (
                     <div key={lang} className="flex items-center space-x-2">
