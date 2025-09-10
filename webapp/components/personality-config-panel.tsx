@@ -30,6 +30,11 @@ interface PersonalityConfig {
     pacing: string[];
     otherDetails: string[];
   };
+  // Language settings
+  primaryLanguage: string;
+  secondaryLanguages: string[];
+  // Instructions
+  instructions: string[];
 }
 
 interface PersonalityConfigPanelProps {
@@ -160,6 +165,20 @@ const PERSONALITY_OPTIONS = {
   ]
 };
 
+// Language options
+const LANGUAGE_OPTIONS: string[] = [
+  "English (US, UK, AU, CA varieties)",
+  "Spanish (Latin American & European)",
+  "French (France & Canadian French)",
+  "German",
+  "Portuguese (Brazilian & European)",
+  "Italian",
+  "Mandarin Chinese (Simplified, with strong support)",
+  "Japanese",
+  "Korean",
+  "Arabic (Modern Standard + regional variants reasonably supported)",
+];
+
 export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityConfigPanelProps) {
   const [config, setConfig] = useState<PersonalityConfig>({
     identity: "",
@@ -183,7 +202,10 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
       fillerWords: [],
       pacing: [],
       otherDetails: []
-    }
+    },
+    primaryLanguage: "",
+    secondaryLanguages: [],
+    instructions: []
   });
 
   const [preview, setPreview] = useState("");
@@ -389,11 +411,37 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     
     // Language section
     sections.push("\n## Language");
-    sections.push("*[Language settings will be pulled from Agent Config]*");
+    if (config.primaryLanguage || (config.secondaryLanguages && config.secondaryLanguages.length > 0)) {
+      let languageText = "";
+      if (config.primaryLanguage) {
+        languageText = `You speak ${config.primaryLanguage} as your primary language`;
+        
+        if (config.secondaryLanguages && config.secondaryLanguages.length > 0) {
+          const secondaryList = config.secondaryLanguages.join(", ");
+          languageText += `, and you can also speak ${secondaryList}`;
+        }
+        
+        languageText += ". If the user wants to switch to another language you support, or you feel the user is not comfortable speaking the language you talk with, you can switch to their preferred language.";
+      }
+      
+      if (languageText) {
+        sections.push(languageText);
+      } else {
+        sections.push("*[Select languages above]*");
+      }
+    } else {
+      sections.push("*[Select languages above]*");
+    }
     
     // Instructions section
     sections.push("\n# Instructions");
-    sections.push("*[Main instructions will be pulled from Agent Config]*");
+    if (config.instructions && config.instructions.length > 0) {
+      config.instructions.forEach(instruction => {
+        sections.push(`- ${instruction}`);
+      });
+    } else {
+      sections.push("*[Add instructions above]*");
+    }
 
     setPreview(sections.join("\n"));
   };
@@ -477,7 +525,7 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
       <div className="space-y-2">
         <label className="text-sm font-medium">{emoji} {label}</label>
         <Select 
-          value={config[dimension]} 
+          value={typeof config[dimension] === 'string' ? config[dimension] : ""} 
           onValueChange={(value) => setConfig(prev => ({ ...prev, [dimension]: value }))}
         >
           <SelectTrigger>
@@ -539,14 +587,15 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
   };
 
   return (
-    <Card className="w-full">
+    <div className="space-y-6">
+      <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           🎭 Personality & Tone Configuration
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[600px] pr-4">
+        <ScrollArea className="h-[800px] pr-4">
           <div className="space-y-6">
             
             {/* Identity */}
@@ -641,18 +690,117 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
             </div>
 
 
-            {/* Preview */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">📋 Instructions Preview</label>
-              <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-96 overflow-y-auto">
-                <div className="prose prose-sm max-w-none">
-                  {preview || "Select options above to see preview..."}
+
+            {/* Instructions */}
+            <div className="space-y-4">
+              <label className="text-sm font-medium">📝 Instructions</label>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Add instruction..."
+                    className="flex-1 px-3 py-2 border rounded-md text-sm"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        setConfig(prev => ({
+                          ...prev,
+                          instructions: [...(prev.instructions || []), e.currentTarget.value.trim()]
+                        }));
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                      if (input.value.trim()) {
+                        setConfig(prev => ({
+                          ...prev,
+                          instructions: [...(prev.instructions || []), input.value.trim()]
+                        }));
+                        input.value = '';
+                      }
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Selected Instructions */}
+                <div className="space-y-2">
+                  {(config.instructions || []).map((instruction, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+                      <span className="text-sm">•</span>
+                      <span className="text-sm flex-1">{instruction}</span>
+                      <button
+                        onClick={() => setConfig(prev => ({
+                          ...prev,
+                          instructions: (prev.instructions || []).filter((_, i) => i !== index)
+                        }))}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
-                This preview shows how your personality configuration will appear in the agent's instructions. 
-                Empty sections will show placeholder text until you make selections.
-              </p>
+            </div>
+
+            {/* Language Selection */}
+            <div className="space-y-4">
+              <label className="text-sm font-medium">🌍 Languages</label>
+              
+              {/* Primary Language Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600">Primary Language</label>
+                <Select 
+                  value={config.primaryLanguage} 
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, primaryLanguage: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select primary language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGE_OPTIONS.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        {lang}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Secondary Languages Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-gray-600">Secondary Languages (Optional)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <div key={lang} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`secondary-${lang}`}
+                        checked={(config.secondaryLanguages || []).includes(lang)}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          setConfig(prev => ({
+                            ...prev,
+                            secondaryLanguages: isChecked
+                              ? [...(prev.secondaryLanguages || []), lang]
+                              : (prev.secondaryLanguages || []).filter(l => l !== lang)
+                          }));
+                        }}
+                        disabled={lang === config.primaryLanguage}
+                        className="rounded"
+                      />
+                      <label htmlFor={`secondary-${lang}`} className="text-sm cursor-pointer">
+                        {lang}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Save Button */}
@@ -687,9 +835,28 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
                 </div>
               )}
             </div>
+
+            {/* Preview Section - Last in ScrollArea */}
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <div className="space-y-4">
+                <label className="text-lg font-semibold flex items-center gap-2">
+                  📋 Instructions Preview
+                </label>
+                <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-64 overflow-y-auto">
+                  <div className="prose prose-sm max-w-none">
+                    {preview || "Configure personality settings above to see preview..."}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  This preview shows how your personality configuration will appear in the agent's instructions. 
+                  Configure personality settings and instructions above to see the complete output.
+                </p>
+              </div>
+            </div>
           </div>
         </ScrollArea>
       </CardContent>
     </Card>
+    </div>
   );
 }

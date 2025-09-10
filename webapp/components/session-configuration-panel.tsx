@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash, Check, AlertCircle } from "lucide-react";
+import { Plus, Edit, Trash, Trash2, Check, AlertCircle } from "lucide-react";
 import { toolTemplates } from "@/lib/tool-templates";
 import { ToolConfigurationDialog } from "./tool-configuration-dialog";
 import { BackendTag } from "./backend-tag";
@@ -668,43 +668,6 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
             </div>
           ) : (
             <div className="space-y-4 sm:space-y-6 m-1 pb-8">
-            {/* Personality Preview */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
-                🎭 Personality & Tone Preview
-              </label>
-              <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-96 overflow-y-auto" key={previewKey}>
-                <div className="prose prose-sm max-w-none">
-                  {(() => {
-                    const preview = generatePersonalityPreview;
-                    console.log('🎭 Rendering preview in UI:', preview.substring(0, 200) + '...');
-                    return preview;
-                  })()}
-                </div>
-              </div>
-              <p className="text-xs text-gray-500">
-                This preview shows how your personality configuration will appear in the agent's instructions. 
-                Configure personality settings in the Personality tab.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
-                Instructions
-              </label>
-              <Textarea
-                placeholder="Enter your main instructions here"
-                className="min-h-[200px] resize-y"
-                value={baseInstructionsRef.current || ""}
-                onChange={(e) => {
-                  const newBaseInstructions = e.target.value;
-                  baseInstructionsRef.current = newBaseInstructions;
-                  
-                  // Update the full instructions with name and language
-                  updateInstructionsWithNameAndLanguages();
-                }}
-              />
-            </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Agent Name</label>
@@ -714,6 +677,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
+
 
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none">Model</label>
@@ -756,62 +720,6 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </Select>
             </div>
 
-            <div className="space-y-4">
-              <label className="text-sm font-medium leading-none">Languages</label>
-              
-              {/* Primary Language Selection */}
-              <div className="space-y-2" key={`primary-${languageKey}`}>
-                <label className="text-xs font-medium text-gray-600">Primary Language</label>
-                <div className="text-xs text-gray-500">Debug: primaryLanguage = "{primaryLanguage}" (length: {primaryLanguage.length})</div>
-                <div className="text-xs text-gray-500">Debug: hasLoadedInitially = {hasLoadedInitially.toString()}</div>
-                <Select value={primaryLanguage} onValueChange={setPrimaryLanguage}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select primary language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGE_OPTIONS.map((lang) => (
-                      <SelectItem key={lang} value={lang}>
-                        {lang}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Secondary Languages Selection */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-600">Secondary Languages (Optional)</label>
-                <div className="text-xs text-gray-500">Debug: secondaryLanguages = {JSON.stringify(secondaryLanguages)} (length: {secondaryLanguages.length})</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border rounded-md p-3">
-                  {LANGUAGE_OPTIONS.map((lang) => (
-                    <div key={lang} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`secondary-${lang}`}
-                        checked={secondaryLanguages.includes(lang)}
-                        onCheckedChange={(checked) => toggleSecondaryLanguage(lang, checked)}
-                        disabled={lang === primaryLanguage}
-                      />
-                      <Label htmlFor={`secondary-${lang}`} className="text-sm">
-                        {lang}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Language Summary */}
-              {(primaryLanguage || secondaryLanguages.length > 0) && (
-                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
-                  <strong>Language Configuration:</strong><br/>
-                  {primaryLanguage && (
-                    <>Primary: {primaryLanguage}<br/></>
-                  )}
-                  {secondaryLanguages.length > 0 && (
-                    <>Secondary: {secondaryLanguages.join(", ")}</>
-                  )}
-                </div>
-              )}
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
