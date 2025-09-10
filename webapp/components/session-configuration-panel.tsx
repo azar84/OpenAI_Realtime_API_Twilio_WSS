@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -201,6 +201,12 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     setPreviewKey(prev => prev + 1);
   }, [baseInstructionsRef.current]);
 
+  // Force re-render when languages change to ensure UI updates
+  const [languageKey, setLanguageKey] = useState(0);
+  useEffect(() => {
+    setLanguageKey(prev => prev + 1);
+  }, [primaryLanguage, secondaryLanguages]);
+
   const updateInstructionsWithNameAndLanguages = () => {
     // Use the stored base instructions
     let baseInstructions = baseInstructionsRef.current;
@@ -294,7 +300,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     return `You speak ${primary} which you will use as your primary language. You can also speak ${othersList}. If the user wants to switch to another supported language, or you feel the user is not comfortable with the current language, you should switch accordingly.`;
   };
 
-  const generatePersonalityPreview = () => {
+  const generatePersonalityPreview = useMemo(() => {
     const sections = [];
     
     // Add Personality & Tone section
@@ -524,7 +530,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     }
     
     return sections.join("\n");
-  };
+  }, [personalityConfig, primaryLanguage, secondaryLanguages, name, baseInstructionsRef.current]);
 
 
   // Remove any previously appended language paragraph starting with "You speak"
@@ -732,7 +738,7 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               <label className="text-sm font-medium leading-none">Languages</label>
               
               {/* Primary Language Selection */}
-              <div className="space-y-2">
+              <div className="space-y-2" key={`primary-${languageKey}`}>
                 <label className="text-xs font-medium text-gray-600">Primary Language</label>
                 <div className="text-xs text-gray-500">Debug: primaryLanguage = "{primaryLanguage}" (length: {primaryLanguage.length})</div>
                 <div className="text-xs text-gray-500">Debug: hasLoadedInitially = {hasLoadedInitially.toString()}</div>
