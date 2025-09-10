@@ -200,22 +200,200 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
   }, [config]);
 
   const generatePreview = () => {
-    const parts = [];
+    const sections = [];
     
-    if (config.identity) parts.push(`Identity: ${config.identity}`);
-    if (config.task) parts.push(`Task: ${config.task}`);
-    if (config.demeanor) parts.push(`Demeanor: ${config.demeanor}`);
-    if (config.tone) parts.push(`Tone: ${config.tone}`);
-    if (config.enthusiasm) parts.push(`Enthusiasm: ${config.enthusiasm}`);
-    if (config.formality) parts.push(`Formality: ${config.formality}`);
-    if (config.emotion) parts.push(`Emotion: ${config.emotion}`);
-    if (config.fillerWords) parts.push(`Filler Words: ${config.fillerWords}`);
-    if (config.pacing) parts.push(`Pacing: ${config.pacing}`);
-    if (config.otherDetails.length > 0) {
-      parts.push(`Other Details: ${config.otherDetails.join(", ")}`);
+    // Add Personality & Tone section
+    sections.push("# Personality & Tone");
+    
+    // Identity section
+    sections.push("## Identity");
+    if (config.identity) {
+      sections.push(`You are a ${config.identity.toLowerCase()} who customers trust for quick, reliable help. You sound approachable and knowledgeable, like someone they've known for years.`);
+    } else {
+      sections.push("*[Select an identity above]*");
     }
+    
+    // Task section
+    sections.push("\n## Task");
+    if (config.task) {
+      sections.push(`Your job is to ${config.task.toLowerCase()}. You ask simple, clear questions, guide them step by step, and provide solutions or escalate when necessary.`);
+    } else {
+      sections.push("*[Select a task above]*");
+    }
+    
+    // Demeanor section
+    sections.push("\n## Demeanor");
+    if (config.demeanor) {
+      const demeanorText = config.demeanor.toLowerCase();
+      if (demeanorText.includes('empathetic')) {
+        sections.push("Empathetic — you show that you care about the user's frustration and reassure them while helping.");
+      } else if (demeanorText.includes('patient')) {
+        sections.push("Patient — you take your time to understand the user's needs and never rush them through the process.");
+      } else if (demeanorText.includes('upbeat')) {
+        sections.push("Upbeat — you maintain a positive, energetic attitude that helps lift the user's spirits.");
+      } else if (demeanorText.includes('serious')) {
+        sections.push("Serious — you approach each interaction with focused attention and professional dedication.");
+      } else if (demeanorText.includes('calm')) {
+        sections.push("Calm — you maintain a steady, reassuring presence that helps users feel at ease.");
+      } else {
+        sections.push(`${config.demeanor} — you approach each interaction with this mindset.`);
+      }
+    } else {
+      sections.push("*[Select a demeanor above]*");
+    }
+    
+    // Tone section
+    sections.push("\n## Tone");
+    if (config.tone) {
+      const toneText = config.tone.toLowerCase();
+      if (toneText.includes('warm and conversational')) {
+        sections.push("Warm and conversational, with a natural flow to your speech.");
+      } else if (toneText.includes('polite and authoritative')) {
+        sections.push("Polite and authoritative — you speak with confidence while maintaining respect.");
+      } else if (toneText.includes('casual and relaxed')) {
+        sections.push("Casual and relaxed — you speak naturally, like talking to a friend.");
+      } else if (toneText.includes('formal and precise')) {
+        sections.push("Formal and precise — you choose your words carefully and speak with clarity.");
+      } else {
+        sections.push(`${config.tone} — you communicate with this voice style.`);
+      }
+    } else {
+      sections.push("*[Select a tone above]*");
+    }
+    
+    // Enthusiasm section
+    sections.push("\n## Level of Enthusiasm");
+    if (config.enthusiasm) {
+      const enthusiasmText = config.enthusiasm.toLowerCase();
+      if (enthusiasmText.includes('engaged but measured')) {
+        sections.push("Engaged but measured — you sound attentive and interested, without going over the top.");
+      } else if (enthusiasmText.includes('highly enthusiastic')) {
+        sections.push("Highly enthusiastic — you bring energy and excitement to every interaction.");
+      } else if (enthusiasmText.includes('energetic')) {
+        sections.push("Energetic — you maintain a lively, dynamic presence throughout the conversation.");
+      } else if (enthusiasmText.includes('neutral interest')) {
+        sections.push("Neutral interest — you remain professional and attentive without excessive excitement.");
+      } else {
+        sections.push(`${config.enthusiasm} — you express this level of enthusiasm in your responses.`);
+      }
+    } else {
+      sections.push("*[Select an enthusiasm level above]*");
+    }
+    
+    // Formality section
+    sections.push("\n## Level of Formality");
+    if (config.formality) {
+      const formalityText = config.formality.toLowerCase();
+      if (formalityText.includes('relaxed professional')) {
+        sections.push("Relaxed professional — polite, clear, and respectful, but not overly stiff.");
+      } else if (formalityText.includes('very casual')) {
+        sections.push("Very casual — you speak like a friend, using informal language and expressions.");
+      } else if (formalityText.includes('highly formal')) {
+        sections.push("Highly formal — you maintain a very structured, professional communication style.");
+      } else if (formalityText.includes('neutral professional')) {
+        sections.push("Neutral professional — you balance friendliness with professional standards.");
+      } else {
+        sections.push(`${config.formality} — you maintain this level of formality.`);
+      }
+    } else {
+      sections.push("*[Select a formality level above]*");
+    }
+    
+    // Emotion section
+    sections.push("\n## Level of Emotion");
+    if (config.emotion) {
+      const emotionText = config.emotion.toLowerCase();
+      if (emotionText.includes('compassionate and warm')) {
+        sections.push("Compassionate and warm — you acknowledge pain points and offer encouragement.");
+      } else if (emotionText.includes('very expressive')) {
+        sections.push("Very expressive — you show your emotions clearly and animatedly.");
+      } else if (emotionText.includes('encouraging and supportive')) {
+        sections.push("Encouraging and supportive — you focus on building the user's confidence.");
+      } else if (emotionText.includes('neutral, matter-of-fact')) {
+        sections.push("Neutral, matter-of-fact — you present information clearly without emotional coloring.");
+      } else {
+        sections.push(`${config.emotion} — you express this level of emotion in your communication.`);
+      }
+    } else {
+      sections.push("*[Select an emotion level above]*");
+    }
+    
+    // Filler Words section
+    sections.push("\n## Filler Words");
+    if (config.fillerWords) {
+      const fillerText = config.fillerWords.toLowerCase();
+      if (fillerText.includes('occasionally')) {
+        sections.push("Occasionally use natural fillers (\"hm,\" \"uh\") to sound more human, but not excessively.");
+      } else if (fillerText.includes('none')) {
+        sections.push("Avoid filler words — speak clearly and directly without unnecessary sounds.");
+      } else if (fillerText.includes('often')) {
+        sections.push("Use filler words frequently — this makes you sound more natural and conversational.");
+      } else if (fillerText.includes('rare')) {
+        sections.push("Use filler words rarely — only when it feels natural, like \"hm\" when thinking.");
+      } else {
+        sections.push(`${config.fillerWords} — you use this approach to filler words in your speech.`);
+      }
+    } else {
+      sections.push("*[Select a filler word style above]*");
+    }
+    
+    // Pacing section
+    sections.push("\n## Pacing");
+    if (config.pacing) {
+      const pacingText = config.pacing.toLowerCase();
+      if (pacingText.includes('medium steady')) {
+        sections.push("Medium steady — keep a normal conversation rhythm, neither rushed nor too slow.");
+      } else if (pacingText.includes('very fast')) {
+        sections.push("Very fast and energetic — you speak quickly with high energy.");
+      } else if (pacingText.includes('slow and deliberate')) {
+        sections.push("Slow and deliberate — you take your time to ensure clarity and understanding.");
+      } else if (pacingText.includes('variable')) {
+        sections.push("Variable — you adjust your pace based on the situation, faster when excited, slower when serious.");
+      } else {
+        sections.push(`${config.pacing} — you speak with this pacing style.`);
+      }
+    } else {
+      sections.push("*[Select a pacing style above]*");
+    }
+    
+    // Other Details section
+    sections.push("\n## Other Details");
+    if (config.otherDetails && config.otherDetails.length > 0) {
+      const details = config.otherDetails.map((detail: string) => {
+        if (detail.includes('check for understanding')) {
+          return "Always check for understanding before moving on. For example, after explaining a step, say \"Does that make sense?\" or \"Were you able to follow that?\" before continuing.";
+        } else if (detail.includes('humor')) {
+          return "Use light humor and jokes when appropriate to make interactions more enjoyable.";
+        } else if (detail.includes('cultural references')) {
+          return "Add cultural references (sports, movies, etc.) when relevant to help users relate.";
+        } else if (detail.includes('storytelling')) {
+          return "Use storytelling analogies to explain complex concepts in simple terms.";
+        } else if (detail.includes('under 20 seconds')) {
+          return "Keep answers under 20 seconds in speech to maintain user engagement.";
+        } else if (detail.includes('plain language')) {
+          return "Rephrase technical instructions in plain language that anyone can understand.";
+        } else if (detail.includes('examples')) {
+          return "Give examples in responses (e.g., \"like when you...\") to clarify your points.";
+        } else if (detail.includes('avoid slang')) {
+          return "Avoid slang entirely — maintain professional language at all times.";
+        } else {
+          return detail;
+        }
+      });
+      sections.push(details.join(" "));
+    } else {
+      sections.push("*[Select other details above]*");
+    }
+    
+    // Language section
+    sections.push("\n## Language");
+    sections.push("*[Language settings will be pulled from Agent Config]*");
+    
+    // Instructions section
+    sections.push("\n# Instructions");
+    sections.push("*[Main instructions will be pulled from Agent Config]*");
 
-    setPreview(parts.join("\n"));
+    setPreview(sections.join("\n"));
   };
 
   const handleSave = () => {
@@ -448,10 +626,16 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
 
             {/* Preview */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Preview</label>
-              <div className="p-3 bg-gray-50 rounded-md text-sm whitespace-pre-wrap">
-                {preview || "Select options above to see preview..."}
+              <label className="text-sm font-medium">📋 Instructions Preview</label>
+              <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-96 overflow-y-auto">
+                <div className="prose prose-sm max-w-none">
+                  {preview || "Select options above to see preview..."}
+                </div>
               </div>
+              <p className="text-xs text-gray-500">
+                This preview shows how your personality configuration will appear in the agent's instructions. 
+                Empty sections will show placeholder text until you make selections.
+              </p>
             </div>
 
             {/* Save Button */}
