@@ -170,18 +170,19 @@ const CallInterface = () => {
 
   const handleSavePersonality = async (personality: any) => {
     try {
-      // Convert personality config to instructions format
-      const personalityInstructions = generatePersonalityInstructions(personality);
-      
       // Get current active config to update it
       const activeConfigResponse = await fetch('/api/agent-config?active=true');
       let configId;
       let currentInstructions = '';
+      let agentConfig = null;
       
       if (activeConfigResponse.ok) {
-        const activeConfig = await activeConfigResponse.json();
-        configId = activeConfig.id;
-        currentInstructions = activeConfig.instructions || '';
+        agentConfig = await activeConfigResponse.json();
+        configId = agentConfig.id;
+        currentInstructions = agentConfig.instructions || '';
+        
+        // Convert personality config to instructions format with agent config
+        const personalityInstructions = generatePersonalityInstructions(personality, agentConfig);
         
         // Combine personality instructions with main instructions
         let combinedInstructions = '';
@@ -224,7 +225,7 @@ const CallInterface = () => {
     }
   };
 
-  const generatePersonalityInstructions = (personality: any) => {
+  const generatePersonalityInstructions = (personality: any, agentConfig: any) => {
     const sections = [];
     
     // Add Personality & Tone section
@@ -233,7 +234,14 @@ const CallInterface = () => {
     // Identity section
     if (personality.identity) {
       sections.push("## Identity");
-      sections.push(`You are a ${personality.identity.toLowerCase()} who customers trust for quick, reliable help. You sound approachable and knowledgeable, like someone they've known for years.`);
+      let identityText = `You are a ${personality.identity.toLowerCase()} who customers trust for quick, reliable help. You sound approachable and knowledgeable, like someone they've known for years.`;
+      
+      // Add name if available
+      if (agentConfig?.name) {
+        identityText += ` and your name is ${agentConfig.name}.`;
+      }
+      
+      sections.push(identityText);
     }
     
     // Task section
@@ -388,6 +396,27 @@ const CallInterface = () => {
         }
       });
       sections.push(details.join(" "));
+    }
+    
+    // Language section
+    if (agentConfig?.primary_language || (agentConfig?.secondary_languages && agentConfig.secondary_languages.length > 0)) {
+      sections.push("## Language");
+      
+      let languageText = "";
+      if (agentConfig.primary_language) {
+        languageText = `You speak ${agentConfig.primary_language} as your primary language`;
+        
+        if (agentConfig.secondary_languages && agentConfig.secondary_languages.length > 0) {
+          const secondaryList = agentConfig.secondary_languages.join(", ");
+          languageText += `, and you can also speak ${secondaryList}`;
+        }
+        
+        languageText += ". If the user wants to switch to another language you support, or you feel the user is not comfortable speaking the language you talk with, you can switch to their preferred language.";
+      }
+      
+      if (languageText) {
+        sections.push(languageText);
+      }
     }
     
     // Add Instructions section header
