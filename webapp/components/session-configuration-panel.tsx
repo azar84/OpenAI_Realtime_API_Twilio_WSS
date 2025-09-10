@@ -545,7 +545,9 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
       sections.push("*[Enter your main instructions below]*");
     }
     
-    return sections.join("\n");
+    const result = sections.join("\n");
+    console.log('🎭 Final preview result:', result.substring(0, 500) + '...');
+    return result;
   }, [personalityConfig, primaryLanguage, secondaryLanguages, name, baseInstructionsRef.current]);
 
 
@@ -673,7 +675,11 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
               </label>
               <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-96 overflow-y-auto" key={previewKey}>
                 <div className="prose prose-sm max-w-none">
-                  {generatePersonalityPreview}
+                  {(() => {
+                    const preview = generatePersonalityPreview;
+                    console.log('🎭 Rendering preview in UI:', preview.substring(0, 200) + '...');
+                    return preview;
+                  })()}
                 </div>
               </div>
               <p className="text-xs text-gray-500">
