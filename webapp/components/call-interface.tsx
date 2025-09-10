@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import TopBar from "@/components/top-bar";
 import ChecklistAndConfig from "@/components/checklist-and-config";
 import SidebarInterface from "@/components/sidebar-interface";
+import { PersonalityConfigPanel } from "@/components/personality-config-panel";
 import { Item } from "@/components/types";
 import handleRealtimeEvent from "@/lib/handle-realtime-event";
 
@@ -13,6 +14,8 @@ const CallInterface = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [callStatus, setCallStatus] = useState("disconnected");
   const [ws, setWs] = useState<WebSocket | null>(null);
+  const [personalityConfig, setPersonalityConfig] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("config");
 
   useEffect(() => {
     if (allConfigsReady && !ws) {
@@ -165,6 +168,66 @@ const CallInterface = () => {
     }
   };
 
+  const handleSavePersonality = async (personality: any) => {
+    try {
+      // Convert personality config to instructions format
+      const personalityInstructions = generatePersonalityInstructions(personality);
+      
+      // Get current active config to update it
+      const activeConfigResponse = await fetch('/api/agent-config?active=true');
+      let configId;
+      
+      if (activeConfigResponse.ok) {
+        const activeConfig = await activeConfigResponse.json();
+        configId = activeConfig.id;
+        
+        // Update existing configuration with personality
+        const updateResponse = await fetch('/api/agent-config', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: configId,
+            personality_config: personality,
+            personality_instructions: personalityInstructions,
+          }),
+        });
+        
+        if (!updateResponse.ok) {
+          throw new Error('Failed to save personality configuration');
+        }
+        
+        console.log("✅ Personality configuration saved");
+        setPersonalityConfig(personality);
+      }
+    } catch (error) {
+      console.error("❌ Error saving personality configuration:", error);
+    }
+  };
+
+  const generatePersonalityInstructions = (personality: any) => {
+    const parts = [];
+    
+    if (personality.identity) parts.push(`You are a ${personality.identity.toLowerCase()}.`);
+    if (personality.task) parts.push(`Your main task is to ${personality.task.toLowerCase()}.`);
+    if (personality.demeanor) parts.push(`Maintain a ${personality.demeanor.toLowerCase()} demeanor.`);
+    if (personality.tone) parts.push(`Use a ${personality.tone.toLowerCase()} tone.`);
+    if (personality.enthusiasm) parts.push(`Show ${personality.enthusiasm.toLowerCase()} in your responses.`);
+    if (personality.formality) parts.push(`Maintain a ${personality.formality.toLowerCase()} level of formality.`);
+    if (personality.emotion) parts.push(`Express ${personality.emotion.toLowerCase()} in your communication.`);
+    if (personality.fillerWords) parts.push(`Use ${personality.fillerWords.toLowerCase()} in your speech.`);
+    if (personality.pacing) parts.push(`Speak with ${personality.pacing.toLowerCase()}.`);
+    if (personality.otherDetails.length > 0) {
+      parts.push(`Additional characteristics: ${personality.otherDetails.join(", ")}.`);
+    }
+    if (personality.customInstructions) {
+      parts.push(personality.customInstructions);
+    }
+
+    return parts.join(" ");
+  };
+
   return (
     <div className="h-screen bg-white flex flex-col">
       <ChecklistAndConfig
@@ -185,6 +248,7 @@ const CallInterface = () => {
           callStatus={callStatus}
           ws={ws}
           onSaveConfiguration={handleSaveConfiguration}
+          onSavePersonality={handleSavePersonality}
         />
       </div>
     </div>

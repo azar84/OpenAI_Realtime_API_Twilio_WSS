@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Settings, MessageSquare, Activity } from "lucide-react";
+import { Settings, MessageSquare, Activity, User } from "lucide-react";
 import SessionConfigurationPanel from "./session-configuration-panel";
+import { PersonalityConfigPanel } from "./personality-config-panel";
 import VoiceChat from "./voice-chat";
 import PhoneNumberChecklist from "./phone-number-checklist";
 import Transcript from "./transcript";
@@ -20,9 +21,10 @@ interface SidebarInterfaceProps {
   callStatus: string;
   ws: WebSocket | null;
   onSaveConfiguration: (config: any) => Promise<void>;
+  onSavePersonality?: (personality: any) => Promise<void>;
 }
 
-type TabType = "agent" | "conversation";
+type TabType = "agent" | "personality" | "conversation";
 
 const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   selectedPhoneNumber,
@@ -34,6 +36,7 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   callStatus,
   ws,
   onSaveConfiguration,
+  onSavePersonality,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("conversation");
 
@@ -49,6 +52,12 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
       label: "Agent Config",
       icon: Settings,
       description: "AI settings and tools"
+    },
+    {
+      id: "personality" as TabType,
+      label: "Personality",
+      icon: User,
+      description: "Personality and tone configuration"
     }
   ];
 
@@ -60,6 +69,14 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
             <SessionConfigurationPanel
               callStatus={callStatus}
               onSave={onSaveConfiguration}
+            />
+          </div>
+        );
+      case "personality":
+        return (
+          <div className="h-full flex flex-col">
+            <PersonalityConfigPanel
+              onSave={onSavePersonality || (() => {})}
             />
           </div>
         );
