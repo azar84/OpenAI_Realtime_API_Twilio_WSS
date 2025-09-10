@@ -200,6 +200,13 @@ const CallInterface = () => {
         }
         
         // Update existing configuration with personality
+        console.log('🔧 Saving combined instructions to database:', {
+          id: configId,
+          personality_config: personality,
+          personality_instructions: personalityInstructions,
+          instructions: combinedInstructions.substring(0, 200) + '...' // Log first 200 chars
+        });
+        
         const updateResponse = await fetch('/api/agent-config', {
           method: 'PUT',
           headers: {
@@ -217,7 +224,11 @@ const CallInterface = () => {
           throw new Error('Failed to save personality configuration');
         }
         
+        // Verify what was saved to database
+        const savedConfig = await updateResponse.json();
         console.log("✅ Personality configuration saved and integrated into instructions");
+        console.log("🔍 Saved instructions preview:", savedConfig.instructions?.substring(0, 200) + '...');
+        
         setPersonalityConfig(personality);
       }
     } catch (error) {
