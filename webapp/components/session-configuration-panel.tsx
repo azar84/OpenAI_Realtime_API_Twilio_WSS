@@ -166,14 +166,21 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
     if (hasLoadedInitially) {
       setHasUnsavedChanges(true);
     }
-  }, [instructions, voice, tools, primaryLanguage, secondaryLanguages, hasLoadedInitially]);
+  }, [voice, tools, primaryLanguage, secondaryLanguages, hasLoadedInitially]); // Removed instructions to avoid circular dependency
 
-  // Update instructions immediately when name or languages change
+  // Update instructions immediately when name changes
   useEffect(() => {
     if (hasLoadedInitially) {
       updateInstructionsWithNameAndLanguages();
     }
-  }, [name, primaryLanguage, secondaryLanguages, hasLoadedInitially]);
+  }, [name, hasLoadedInitially]);
+
+  // Update instructions when languages change (separate effect to avoid circular dependency)
+  useEffect(() => {
+    if (hasLoadedInitially) {
+      updateInstructionsWithNameAndLanguages();
+    }
+  }, [primaryLanguage, secondaryLanguages, hasLoadedInitially]);
 
   // Force re-render when baseInstructionsRef changes to update preview
   const [previewKey, setPreviewKey] = useState(0);
