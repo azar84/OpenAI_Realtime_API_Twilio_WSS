@@ -22,6 +22,7 @@ interface SidebarInterfaceProps {
   ws: WebSocket | null;
   onSaveConfiguration: (config: any) => Promise<void>;
   onSavePersonality?: (personality: any) => Promise<void>;
+  personalityConfig?: any;
 }
 
 type TabType = "agent" | "personality" | "conversation";
@@ -37,6 +38,7 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   ws,
   onSaveConfiguration,
   onSavePersonality,
+  personalityConfig,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("conversation");
 
@@ -76,7 +78,8 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
         return (
           <div className="h-full flex flex-col">
             <PersonalityConfigPanel
-              onSave={onSavePersonality || (() => {})}
+              onSave={onSavePersonality || (() => Promise.resolve())}
+              initialConfig={personalityConfig}
             />
           </div>
         );

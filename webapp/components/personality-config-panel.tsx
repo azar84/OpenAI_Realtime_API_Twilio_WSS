@@ -188,6 +188,8 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
 
   const [preview, setPreview] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
 
   useEffect(() => {
     if (initialConfig) {
@@ -396,8 +398,23 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     setPreview(sections.join("\n"));
   };
 
-  const handleSave = () => {
-    onSave(config);
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveStatus("idle");
+    
+    try {
+      await onSave(config);
+      setSaveStatus("success");
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (error) {
+      console.error("Error saving personality:", error);
+      setSaveStatus("error");
+      // Clear error message after 5 seconds
+      setTimeout(() => setSaveStatus("idle"), 5000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleOtherDetail = (detail: string) => {
@@ -639,10 +656,37 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
             </div>
 
             {/* Save Button */}
-            <Button onClick={handleSave} className="w-full">
-              <Check className="h-4 w-4 mr-2" />
-              Save Personality Configuration
-            </Button>
+            <div className="space-y-2">
+              <Button 
+                onClick={handleSave} 
+                disabled={isSaving}
+                className="w-full"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Save Personality Configuration
+                  </>
+                )}
+              </Button>
+              
+              {/* Status Messages */}
+              {saveStatus === "success" && (
+                <div className="text-green-600 text-sm text-center">
+                  ✅ Personality configuration saved successfully!
+                </div>
+              )}
+              {saveStatus === "error" && (
+                <div className="text-red-600 text-sm text-center">
+                  ❌ Failed to save personality configuration. Please try again.
+                </div>
+              )}
+            </div>
           </div>
         </ScrollArea>
       </CardContent>

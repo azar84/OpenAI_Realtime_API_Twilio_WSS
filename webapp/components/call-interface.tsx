@@ -446,6 +446,7 @@ const CallInterface = () => {
           ws={ws}
           onSaveConfiguration={handleSaveConfiguration}
           onSavePersonality={handleSavePersonality}
+          personalityConfig={personalityConfig}
         />
       </div>
     </div>
