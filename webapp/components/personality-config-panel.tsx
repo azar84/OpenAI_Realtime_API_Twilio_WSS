@@ -18,7 +18,18 @@ interface PersonalityConfig {
   fillerWords: string;
   pacing: string;
   otherDetails: string[];
-  customInstructions: string;
+  customItems: {
+    identity: string[];
+    task: string[];
+    demeanor: string[];
+    tone: string[];
+    enthusiasm: string[];
+    formality: string[];
+    emotion: string[];
+    fillerWords: string[];
+    pacing: string[];
+    otherDetails: string[];
+  };
 }
 
 interface PersonalityConfigPanelProps {
@@ -161,7 +172,18 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     fillerWords: "",
     pacing: "",
     otherDetails: [],
-    customInstructions: ""
+    customItems: {
+      identity: [],
+      task: [],
+      demeanor: [],
+      tone: [],
+      enthusiasm: [],
+      formality: [],
+      emotion: [],
+      fillerWords: [],
+      pacing: [],
+      otherDetails: []
+    }
   });
 
   const [preview, setPreview] = useState("");
@@ -192,9 +214,6 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     if (config.otherDetails.length > 0) {
       parts.push(`Other Details: ${config.otherDetails.join(", ")}`);
     }
-    if (config.customInstructions) {
-      parts.push(`Custom Instructions: ${config.customInstructions}`);
-    }
 
     setPreview(parts.join("\n"));
   };
@@ -209,6 +228,28 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
       otherDetails: prev.otherDetails.includes(detail)
         ? prev.otherDetails.filter(d => d !== detail)
         : [...prev.otherDetails, detail]
+    }));
+  };
+
+  const addCustomItem = (dimension: keyof typeof config.customItems, item: string) => {
+    if (item.trim() && !config.customItems[dimension].includes(item.trim())) {
+      setConfig(prev => ({
+        ...prev,
+        customItems: {
+          ...prev.customItems,
+          [dimension]: [...prev.customItems[dimension], item.trim()]
+        }
+      }));
+    }
+  };
+
+  const removeCustomItem = (dimension: keyof typeof config.customItems, item: string) => {
+    setConfig(prev => ({
+      ...prev,
+      customItems: {
+        ...prev.customItems,
+        [dimension]: prev.customItems[dimension].filter(d => d !== item)
+      }
     }));
   };
 
@@ -228,6 +269,80 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     }));
   };
 
+  const renderDimensionField = (
+    dimension: keyof Omit<PersonalityConfig, 'otherDetails' | 'customItems'>,
+    label: string,
+    emoji: string,
+    options: string[]
+  ) => {
+    const customItems = config.customItems[dimension as keyof typeof config.customItems] as string[];
+    const allOptions = [...options, ...customItems];
+    
+    return (
+      <div className="space-y-2">
+        <label className="text-sm font-medium">{emoji} {label}</label>
+        <Select 
+          value={config[dimension]} 
+          onValueChange={(value) => setConfig(prev => ({ ...prev, [dimension]: value }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={`Select ${label.toLowerCase()}...`} />
+          </SelectTrigger>
+          <SelectContent>
+            {allOptions.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        {/* Custom Items for this dimension */}
+        <div className="space-y-2">
+          <label className="text-xs text-gray-600">Add custom {label.toLowerCase()}:</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder={`Add custom ${label.toLowerCase()}...`}
+              className="flex-1 px-3 py-2 border rounded-md text-sm"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  addCustomItem(dimension as keyof typeof config.customItems, e.currentTarget.value);
+                  e.currentTarget.value = '';
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={(e) => {
+                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                addCustomItem(dimension as keyof typeof config.customItems, input.value);
+                input.value = '';
+              }}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Selected Custom Items */}
+          <div className="flex flex-wrap gap-2">
+            {customItems.map((item) => (
+              <Badge key={item} variant="secondary" className="flex items-center gap-1">
+                {item}
+                <button
+                  onClick={() => removeCustomItem(dimension as keyof typeof config.customItems, item)}
+                  className="ml-1 hover:text-red-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -240,157 +355,31 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
           <div className="space-y-6">
             
             {/* Identity */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🎭 Identity (who/what the agent is)</label>
-              <Select value={config.identity} onValueChange={(value) => setConfig(prev => ({ ...prev, identity: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select identity..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.identity.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('identity', 'Identity (who/what the agent is)', '🎭', PERSONALITY_OPTIONS.identity)}
 
             {/* Task */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🎯 Task (what the agent does)</label>
-              <Select value={config.task} onValueChange={(value) => setConfig(prev => ({ ...prev, task: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select task..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.task.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('task', 'Task (what the agent does)', '🎯', PERSONALITY_OPTIONS.task)}
 
             {/* Demeanor */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🌱 Demeanor (overall attitude)</label>
-              <Select value={config.demeanor} onValueChange={(value) => setConfig(prev => ({ ...prev, demeanor: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select demeanor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.demeanor.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('demeanor', 'Demeanor (overall attitude)', '🌱', PERSONALITY_OPTIONS.demeanor)}
 
             {/* Tone */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🗣 Tone (voice style)</label>
-              <Select value={config.tone} onValueChange={(value) => setConfig(prev => ({ ...prev, tone: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select tone..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.tone.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('tone', 'Tone (voice style)', '🗣', PERSONALITY_OPTIONS.tone)}
 
             {/* Enthusiasm */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🔥 Level of Enthusiasm</label>
-              <Select value={config.enthusiasm} onValueChange={(value) => setConfig(prev => ({ ...prev, enthusiasm: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select enthusiasm level..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.enthusiasm.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('enthusiasm', 'Level of Enthusiasm', '🔥', PERSONALITY_OPTIONS.enthusiasm)}
 
             {/* Formality */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🎩 Level of Formality</label>
-              <Select value={config.formality} onValueChange={(value) => setConfig(prev => ({ ...prev, formality: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select formality level..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.formality.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('formality', 'Level of Formality', '🎩', PERSONALITY_OPTIONS.formality)}
 
             {/* Emotion */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">💓 Level of Emotion</label>
-              <Select value={config.emotion} onValueChange={(value) => setConfig(prev => ({ ...prev, emotion: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select emotion level..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.emotion.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('emotion', 'Level of Emotion', '💓', PERSONALITY_OPTIONS.emotion)}
 
             {/* Filler Words */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">🤔 Filler Words</label>
-              <Select value={config.fillerWords} onValueChange={(value) => setConfig(prev => ({ ...prev, fillerWords: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select filler word style..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.fillerWords.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('fillerWords', 'Filler Words', '🤔', PERSONALITY_OPTIONS.fillerWords)}
 
             {/* Pacing */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">⏱ Pacing</label>
-              <Select value={config.pacing} onValueChange={(value) => setConfig(prev => ({ ...prev, pacing: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pacing..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERSONALITY_OPTIONS.pacing.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderDimensionField('pacing', 'Pacing', '⏱', PERSONALITY_OPTIONS.pacing)}
 
             {/* Other Details */}
             <div className="space-y-2">
@@ -456,16 +445,6 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
               </div>
             </div>
 
-            {/* Custom Instructions */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Custom Instructions</label>
-              <Textarea
-                placeholder="Add any additional custom instructions..."
-                value={config.customInstructions}
-                onChange={(e) => setConfig(prev => ({ ...prev, customInstructions: e.target.value }))}
-                className="min-h-[100px]"
-              />
-            </div>
 
             {/* Preview */}
             <div className="space-y-2">

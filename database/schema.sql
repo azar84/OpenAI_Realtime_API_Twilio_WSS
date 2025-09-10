@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS agent_configs (
     primary_language VARCHAR(100) DEFAULT NULL, -- Primary language
     secondary_languages JSONB DEFAULT '[]'::jsonb, -- Array of secondary languages
     
+    -- Personality configuration
+    personality_config JSONB DEFAULT '{}'::jsonb, -- Full personality configuration object
+    personality_instructions TEXT DEFAULT NULL, -- Generated personality instructions
+    
     -- Metadata
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

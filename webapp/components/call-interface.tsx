@@ -221,9 +221,6 @@ const CallInterface = () => {
     if (personality.otherDetails.length > 0) {
       parts.push(`Additional characteristics: ${personality.otherDetails.join(", ")}.`);
     }
-    if (personality.customInstructions) {
-      parts.push(personality.customInstructions);
-    }
 
     return parts.join(" ");
   };

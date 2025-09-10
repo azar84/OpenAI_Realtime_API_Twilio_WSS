@@ -65,6 +65,8 @@ export interface AgentConfig {
   enabled_tools: string[];
   primary_language?: string;
   secondary_languages: string[];
+  personality_config?: any;
+  personality_instructions?: string;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -116,8 +118,9 @@ export class AgentConfigDB {
         input_audio_format, output_audio_format, turn_detection_type,
         turn_detection_threshold, turn_detection_prefix_padding_ms, 
         turn_detection_silence_duration_ms, modalities, tools_enabled, 
-        enabled_tools, primary_language, secondary_languages, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        enabled_tools, primary_language, secondary_languages, 
+        personality_config, personality_instructions, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         config.name,
@@ -137,6 +140,8 @@ export class AgentConfigDB {
         JSON.stringify(config.enabled_tools),
         config.primary_language || null,
         JSON.stringify(config.secondary_languages || []),
+        JSON.stringify(config.personality_config || {}),
+        config.personality_instructions || null,
         config.is_active
       ]
     );
@@ -154,7 +159,7 @@ export class AgentConfigDB {
     // Build dynamic UPDATE query
     Object.entries(config).forEach(([key, value]) => {
       if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && value !== undefined) {
-        if (key === 'modalities' || key === 'enabled_tools' || key === 'secondary_languages') {
+        if (key === 'modalities' || key === 'enabled_tools' || key === 'secondary_languages' || key === 'personality_config') {
           fields.push(`${key} = $${paramIndex}`);
           values.push(JSON.stringify(value));
         } else {
@@ -212,6 +217,8 @@ export class AgentConfigDB {
       enabled_tools: typeof row.enabled_tools === 'string' ? JSON.parse(row.enabled_tools) : row.enabled_tools,
       primary_language: row.primary_language,
       secondary_languages: typeof row.secondary_languages === 'string' ? JSON.parse(row.secondary_languages) : (row.secondary_languages || []),
+      personality_config: typeof row.personality_config === 'string' ? JSON.parse(row.personality_config) : (row.personality_config || {}),
+      personality_instructions: row.personality_instructions,
       is_active: row.is_active,
       created_at: row.created_at,
       updated_at: row.updated_at
