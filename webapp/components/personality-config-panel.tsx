@@ -5,7 +5,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Plus, Trash2 } from "lucide-react";
+import { Check, X, Plus, Trash2, Edit, Save } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface PersonalityConfig {
   identity: string;
@@ -17,7 +25,6 @@ interface PersonalityConfig {
   emotion: string;
   fillerWords: string;
   pacing: string;
-  otherDetails: string[];
   customItems: {
     identity: string[];
     task: string[];
@@ -28,7 +35,6 @@ interface PersonalityConfig {
     emotion: string[];
     fillerWords: string[];
     pacing: string[];
-    otherDetails: string[];
   };
   // Language settings
   primaryLanguage: string;
@@ -150,18 +156,6 @@ const PERSONALITY_OPTIONS = {
     "Laid-back, with longer pauses",
     "Slightly rushed, eager",
     "Relaxed, calm rhythm"
-  ],
-  otherDetails: [
-    "Uses light humor/jokes when appropriate",
-    "Adds cultural references (sports, movies, etc.)",
-    "Speaks with regional accent (e.g., Quebecois French, Southern US)",
-    "References brand values in responses",
-    "Uses storytelling analogies to explain things",
-    "Keeps answers under 20 seconds in speech",
-    "Rephrases instructions in plain language",
-    "Always checks for understanding before moving on",
-    "Gives examples in responses (e.g., \"like when you…\")",
-    "Avoids slang entirely"
   ]
 };
 
@@ -190,7 +184,6 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     emotion: "",
     fillerWords: "",
     pacing: "",
-    otherDetails: [],
     customItems: {
       identity: [],
       task: [],
@@ -200,8 +193,7 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
       formality: [],
       emotion: [],
       fillerWords: [],
-      pacing: [],
-      otherDetails: []
+      pacing: []
     },
     primaryLanguage: "",
     secondaryLanguages: [],
@@ -212,6 +204,27 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  
+  // Confirmation dialog state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    dimension: keyof typeof config.customItems;
+    option: string;
+    isDefault: boolean;
+  } | null>(null);
+
+  // Manage options dialog state
+  const [showManageOptions, setShowManageOptions] = useState<{
+    dimension: keyof typeof config.customItems;
+    options: string[];
+    filteredDefaultOptions: string[];
+    label: string;
+  } | null>(null);
+  
+  // Editing state
+  const [editingOption, setEditingOption] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+  const [newOptionValue, setNewOptionValue] = useState<string>("");
 
   useEffect(() => {
     if (initialConfig) {
@@ -222,6 +235,22 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
   useEffect(() => {
     generatePreview();
   }, [config]);
+
+  // Auto-save when customItems change (but not on initial load)
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  useEffect(() => {
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      return;
+    }
+    
+    // Auto-save after a short delay to avoid too many saves
+    const timeoutId = setTimeout(() => {
+      onSave(config);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [config.customItems, onSave, config, isInitialLoad]);
 
   const generatePreview = () => {
     const sections = [];
@@ -380,34 +409,6 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
       sections.push("*[Select a pacing style above]*");
     }
     
-    // Other Details section
-    sections.push("\n## Other Details");
-    if (config.otherDetails && config.otherDetails.length > 0) {
-      const details = config.otherDetails.map((detail: string) => {
-        if (detail.includes('check for understanding')) {
-          return "Always check for understanding before moving on. For example, after explaining a step, say \"Does that make sense?\" or \"Were you able to follow that?\" before continuing.";
-        } else if (detail.includes('humor')) {
-          return "Use light humor and jokes when appropriate to make interactions more enjoyable.";
-        } else if (detail.includes('cultural references')) {
-          return "Add cultural references (sports, movies, etc.) when relevant to help users relate.";
-        } else if (detail.includes('storytelling')) {
-          return "Use storytelling analogies to explain complex concepts in simple terms.";
-        } else if (detail.includes('under 20 seconds')) {
-          return "Keep answers under 20 seconds in speech to maintain user engagement.";
-        } else if (detail.includes('plain language')) {
-          return "Rephrase technical instructions in plain language that anyone can understand.";
-        } else if (detail.includes('examples')) {
-          return "Give examples in responses (e.g., \"like when you...\") to clarify your points.";
-        } else if (detail.includes('avoid slang')) {
-          return "Avoid slang entirely — maintain professional language at all times.";
-        } else {
-          return detail;
-        }
-      });
-      sections.push(details.join(" "));
-    } else {
-      sections.push("*[Select other details above]*");
-    }
     
     // Language section
     sections.push("\n## Language");
@@ -465,15 +466,6 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     }
   };
 
-  const toggleOtherDetail = (detail: string) => {
-    setConfig(prev => ({
-      ...prev,
-      otherDetails: prev.otherDetails.includes(detail)
-        ? prev.otherDetails.filter(d => d !== detail)
-        : [...prev.otherDetails, detail]
-    }));
-  };
-
   const addCustomItem = (dimension: keyof typeof config.customItems, item: string) => {
     if (item.trim() && !config.customItems[dimension].includes(item.trim())) {
       setConfig(prev => ({
@@ -496,30 +488,114 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     }));
   };
 
-  const addCustomDetail = (detail: string) => {
-    if (detail.trim() && !config.otherDetails.includes(detail.trim())) {
-      setConfig(prev => ({
-        ...prev,
-        otherDetails: [...prev.otherDetails, detail.trim()]
-      }));
-    }
+  const confirmDeleteOption = (dimension: keyof typeof config.customItems, option: string, isDefaultOption: boolean) => {
+    setDeleteTarget({ dimension, option, isDefault: isDefaultOption });
+    setShowDeleteConfirm(true);
   };
 
-  const removeCustomDetail = (detail: string) => {
-    setConfig(prev => ({
-      ...prev,
-      otherDetails: prev.otherDetails.filter(d => d !== detail)
-    }));
+  const executeDeleteOption = () => {
+    if (!deleteTarget) return;
+    
+    const { dimension, option, isDefault } = deleteTarget;
+    
+    if (isDefault) {
+      // For default options, we need to add them to a "removed" list or modify the PERSONALITY_OPTIONS
+      // Since we can't modify the const, we'll track removed default options in customItems with a special prefix
+      const removedKey = `__REMOVED__${option}`;
+      setConfig(prev => ({
+        ...prev,
+        customItems: {
+          ...prev.customItems,
+          [dimension]: prev.customItems[dimension].includes(removedKey) 
+            ? prev.customItems[dimension]
+            : [...prev.customItems[dimension], removedKey]
+        },
+        // If this option was selected, clear the selection
+        [dimension]: prev[dimension] === option ? "" : prev[dimension]
+      }));
+    } else {
+      // For custom options, simply remove from the array
+      removeCustomItem(dimension, option);
+    }
+    
+    // Close dialog and reset state
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const startEditingOption = (option: string) => {
+    setEditingOption(option);
+    setEditingValue(option);
+  };
+
+  const saveEditedOption = () => {
+    if (!editingOption || !showManageOptions || !editingValue.trim()) return;
+    
+    const { dimension } = showManageOptions;
+    const isDefault = showManageOptions.filteredDefaultOptions.includes(editingOption);
+    
+    if (isDefault) {
+      // For default options, we need to remove the old one and add the new one as custom
+      const removedKey = `__REMOVED__${editingOption}`;
+      setConfig(prev => ({
+        ...prev,
+        customItems: {
+          ...prev.customItems,
+          [dimension]: [
+            ...prev.customItems[dimension].filter(item => item !== removedKey),
+            removedKey,
+            editingValue.trim()
+          ]
+        },
+        // Update selection if this option was selected
+        [dimension]: prev[dimension] === editingOption ? editingValue.trim() : prev[dimension]
+      }));
+    } else {
+      // For custom options, replace in the array
+      setConfig(prev => ({
+        ...prev,
+        customItems: {
+          ...prev.customItems,
+          [dimension]: prev.customItems[dimension].map(item => 
+            item === editingOption ? editingValue.trim() : item
+          )
+        },
+        // Update selection if this option was selected
+        [dimension]: prev[dimension] === editingOption ? editingValue.trim() : prev[dimension]
+      }));
+    }
+    
+    setEditingOption(null);
+    setEditingValue("");
+  };
+
+  const cancelEditingOption = () => {
+    setEditingOption(null);
+    setEditingValue("");
+  };
+
+  const addNewOption = () => {
+    if (!showManageOptions || !newOptionValue.trim()) return;
+    
+    const { dimension } = showManageOptions;
+    addCustomItem(dimension, newOptionValue.trim());
+    setNewOptionValue("");
   };
 
   const renderDimensionField = (
-    dimension: keyof Omit<PersonalityConfig, 'otherDetails' | 'customItems'>,
+    dimension: keyof Omit<PersonalityConfig, 'customItems' | 'primaryLanguage' | 'secondaryLanguages' | 'instructions'>,
     label: string,
     emoji: string,
     options: string[]
   ) => {
     const customItems = config.customItems[dimension as keyof typeof config.customItems] as string[];
-    const allOptions = [...options, ...customItems];
+    
+    // Filter out removed default options and removed keys from custom items
+    const removedDefaultOptions = customItems.filter(item => item.startsWith('__REMOVED__')).map(item => item.replace('__REMOVED__', ''));
+    const filteredDefaultOptions = options.filter(option => !removedDefaultOptions.includes(option));
+    const filteredCustomItems = customItems.filter(item => !item.startsWith('__REMOVED__'));
+    
+    const allOptions = [...filteredDefaultOptions, ...filteredCustomItems];
     
     return (
       <div className="space-y-2">
@@ -540,48 +616,20 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
           </SelectContent>
         </Select>
         
-        {/* Custom Items for this dimension */}
-        <div className="space-y-2">
-          <label className="text-xs text-gray-600">Add custom {label.toLowerCase()}:</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder={`Add custom ${label.toLowerCase()}...`}
-              className="flex-1 px-3 py-2 border rounded-md text-sm"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  addCustomItem(dimension as keyof typeof config.customItems, e.currentTarget.value);
-                  e.currentTarget.value = '';
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              onClick={(e) => {
-                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                addCustomItem(dimension as keyof typeof config.customItems, input.value);
-                input.value = '';
-              }}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {/* Selected Custom Items */}
-          <div className="flex flex-wrap gap-2">
-            {customItems.map((item) => (
-              <Badge key={item} variant="secondary" className="flex items-center gap-1">
-                {item}
-                <button
-                  onClick={() => removeCustomItem(dimension as keyof typeof config.customItems, item)}
-                  className="ml-1 hover:text-red-500"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        </div>
+        {/* Manage all options button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowManageOptions({ 
+            dimension: dimension as keyof typeof config.customItems, 
+            options: allOptions, 
+            filteredDefaultOptions,
+            label 
+          })}
+          className="text-xs"
+        >
+          Manage {label} ({allOptions.length})
+        </Button>
       </div>
     );
   };
@@ -625,69 +673,6 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
             {/* Pacing */}
             {renderDimensionField('pacing', 'Pacing', '⏱', PERSONALITY_OPTIONS.pacing)}
 
-            {/* Other Details */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">📝 Other Details (select multiple)</label>
-              <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-                {PERSONALITY_OPTIONS.otherDetails.map((option) => (
-                  <div key={option} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={option}
-                      checked={config.otherDetails.includes(option)}
-                      onChange={() => toggleOtherDetail(option)}
-                      className="rounded"
-                    />
-                    <label htmlFor={option} className="text-sm cursor-pointer">
-                      {option}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Custom Details */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Custom Details</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add custom detail..."
-                    className="flex-1 px-3 py-2 border rounded-md text-sm"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        addCustomDetail(e.currentTarget.value);
-                        e.currentTarget.value = '';
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                      addCustomDetail(input.value);
-                      input.value = '';
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Selected Custom Details */}
-                <div className="flex flex-wrap gap-2">
-                  {config.otherDetails.filter(d => !PERSONALITY_OPTIONS.otherDetails.includes(d)).map((detail) => (
-                    <Badge key={detail} variant="secondary" className="flex items-center gap-1">
-                      {detail}
-                      <button
-                        onClick={() => removeCustomDetail(detail)}
-                        className="ml-1 hover:text-red-500"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
 
 
 
@@ -857,6 +842,164 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
         </ScrollArea>
       </CardContent>
     </Card>
+
+    {/* Delete Confirmation Dialog */}
+    <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Option</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete "{deleteTarget?.option}"? 
+            {deleteTarget?.isDefault 
+              ? " This is a default option and will be permanently removed from your available choices."
+              : " This custom option will be permanently deleted."
+            }
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setShowDeleteConfirm(false);
+              setDeleteTarget(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={executeDeleteOption}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Manage Options Dialog */}
+    <Dialog open={!!showManageOptions} onOpenChange={() => {
+      setShowManageOptions(null);
+      setEditingOption(null);
+      setEditingValue("");
+      setNewOptionValue("");
+    }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Manage {showManageOptions?.label}</DialogTitle>
+          <DialogDescription>
+            Add new options, edit existing ones, or delete options you don't need.
+          </DialogDescription>
+        </DialogHeader>
+        
+        {/* Add new option */}
+        <div className="border-b pb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder={`Add new ${showManageOptions?.label.toLowerCase()}...`}
+              value={newOptionValue}
+              onChange={(e) => setNewOptionValue(e.target.value)}
+              className="flex-1 px-3 py-2 border rounded-md text-sm"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  addNewOption();
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={addNewOption}
+              disabled={!newOptionValue.trim()}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Existing options */}
+        <div className="max-h-64 overflow-y-auto space-y-1">
+          {showManageOptions?.options.map((option) => (
+            <div key={option} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded">
+              {editingOption === option ? (
+                // Edit mode
+                <>
+                  <input
+                    type="text"
+                    value={editingValue}
+                    onChange={(e) => setEditingValue(e.target.value)}
+                    className="flex-1 px-2 py-1 border rounded text-sm"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        saveEditedOption();
+                      } else if (e.key === 'Escape') {
+                        cancelEditingOption();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={saveEditedOption}
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    disabled={!editingValue.trim()}
+                  >
+                    <Save className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={cancelEditingOption}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </>
+              ) : (
+                // View mode
+                <>
+                  <span className="text-sm flex-1">{option}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => startEditingOption(option)}
+                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      confirmDeleteOption(
+                        showManageOptions.dimension,
+                        option,
+                        showManageOptions.filteredDefaultOptions.includes(option)
+                      );
+                      setShowManageOptions(null);
+                    }}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={() => {
+            setShowManageOptions(null);
+            setEditingOption(null);
+            setEditingValue("");
+            setNewOptionValue("");
+          }}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }

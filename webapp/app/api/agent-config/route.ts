@@ -91,6 +91,8 @@ export async function POST(request: NextRequest) {
       enabled_tools: body.enabled_tools || [],
       primary_language: body.primary_language || null,
       secondary_languages: body.secondary_languages || [],
+      personality_config: body.personality_config || {},
+      personality_instructions: body.personality_instructions || null,
       is_active: body.is_active !== undefined ? body.is_active : true
     };
 
