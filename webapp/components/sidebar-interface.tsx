@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Settings, MessageSquare, Activity, User } from "lucide-react";
+import { Settings, MessageSquare, User, Bot, Phone } from "lucide-react";
 import SessionConfigurationPanel from "./session-configuration-panel";
 import { PersonalityConfigPanel } from "./personality-config-panel";
 import VoiceChat from "./voice-chat";
@@ -58,7 +58,7 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
     {
       id: "personality" as TabType,
       label: "Personality",
-      icon: User,
+      icon: Bot,
       description: "Personality and tone configuration"
     }
   ];
@@ -135,7 +135,7 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
                     : "hover:bg-gray-100 text-gray-700"
                 }`}
               >
-                <Icon className="h-5 w-5 mr-3" />
+                <Icon className="h-5 w-5 mr-3 flex-shrink-0 text-current" />
                 <div className="text-left">
                   <div className="font-medium">{tab.label}</div>
                   <div className="text-xs opacity-75 mt-1">

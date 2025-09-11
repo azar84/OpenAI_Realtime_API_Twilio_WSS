@@ -516,7 +516,6 @@ const CallInterface = () => {
           onSaveConfiguration={handleSaveConfiguration}
           onSavePersonality={handleSavePersonality}
           personalityConfig={personalityConfig}
-          liveInstructions={liveInstructions}
         />
       </div>
     </div>

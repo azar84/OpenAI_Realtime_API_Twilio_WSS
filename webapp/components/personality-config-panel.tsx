@@ -5,7 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Plus, Trash2, Edit, Save } from "lucide-react";
+import { 
+  Check, X, Plus, Trash2, Edit, Save,
+  User, Target, Heart, MessageSquare, Zap, Crown, 
+  Brain, Clock, Volume2, MessageCircle, Eye
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -585,7 +589,7 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
   const renderDimensionField = (
     dimension: keyof Omit<PersonalityConfig, 'customItems' | 'primaryLanguage' | 'secondaryLanguages' | 'instructions'>,
     label: string,
-    emoji: string,
+    Icon: React.ComponentType<{ className?: string }>,
     options: string[]
   ) => {
     const customItems = config.customItems[dimension as keyof typeof config.customItems] as string[];
@@ -599,7 +603,10 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
     
     return (
       <div className="space-y-2">
-        <label className="text-sm font-medium">{emoji} {label}</label>
+        <label className="text-sm font-medium flex items-center gap-2">
+          <Icon className="h-4 w-4 text-gray-600" />
+          {label}
+        </label>
         <Select 
           value={typeof config[dimension] === 'string' ? config[dimension] : ""} 
           onValueChange={(value) => setConfig(prev => ({ ...prev, [dimension]: value }))}
@@ -639,7 +646,8 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
       <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          🎭 Personality & Tone Configuration
+          <User className="h-5 w-5 text-gray-600" />
+          Personality & Tone Configuration
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -647,38 +655,41 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
           <div className="space-y-6">
             
             {/* Identity */}
-            {renderDimensionField('identity', 'Identity (who/what the agent is)', '🎭', PERSONALITY_OPTIONS.identity)}
+            {renderDimensionField('identity', 'Identity (who/what the agent is)', User, PERSONALITY_OPTIONS.identity)}
 
             {/* Task */}
-            {renderDimensionField('task', 'Task (what the agent does)', '🎯', PERSONALITY_OPTIONS.task)}
+            {renderDimensionField('task', 'Task (what the agent does)', Target, PERSONALITY_OPTIONS.task)}
 
             {/* Demeanor */}
-            {renderDimensionField('demeanor', 'Demeanor (overall attitude)', '🌱', PERSONALITY_OPTIONS.demeanor)}
+            {renderDimensionField('demeanor', 'Demeanor (overall attitude)', Heart, PERSONALITY_OPTIONS.demeanor)}
 
             {/* Tone */}
-            {renderDimensionField('tone', 'Tone (voice style)', '🗣', PERSONALITY_OPTIONS.tone)}
+            {renderDimensionField('tone', 'Tone (voice style)', MessageSquare, PERSONALITY_OPTIONS.tone)}
 
             {/* Enthusiasm */}
-            {renderDimensionField('enthusiasm', 'Level of Enthusiasm', '🔥', PERSONALITY_OPTIONS.enthusiasm)}
+            {renderDimensionField('enthusiasm', 'Level of Enthusiasm', Zap, PERSONALITY_OPTIONS.enthusiasm)}
 
             {/* Formality */}
-            {renderDimensionField('formality', 'Level of Formality', '🎩', PERSONALITY_OPTIONS.formality)}
+            {renderDimensionField('formality', 'Level of Formality', Crown, PERSONALITY_OPTIONS.formality)}
 
             {/* Emotion */}
-            {renderDimensionField('emotion', 'Level of Emotion', '💓', PERSONALITY_OPTIONS.emotion)}
+            {renderDimensionField('emotion', 'Level of Emotion', Brain, PERSONALITY_OPTIONS.emotion)}
 
             {/* Filler Words */}
-            {renderDimensionField('fillerWords', 'Filler Words', '🤔', PERSONALITY_OPTIONS.fillerWords)}
+            {renderDimensionField('fillerWords', 'Filler Words', Volume2, PERSONALITY_OPTIONS.fillerWords)}
 
             {/* Pacing */}
-            {renderDimensionField('pacing', 'Pacing', '⏱', PERSONALITY_OPTIONS.pacing)}
+            {renderDimensionField('pacing', 'Pacing', Clock, PERSONALITY_OPTIONS.pacing)}
 
 
 
 
             {/* Instructions */}
             <div className="space-y-4">
-              <label className="text-sm font-medium">📝 Instructions</label>
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Edit className="h-4 w-4 text-gray-600" />
+                Instructions
+              </label>
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <input
@@ -735,7 +746,10 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
 
             {/* Language Selection */}
             <div className="space-y-4">
-              <label className="text-sm font-medium">🌍 Languages</label>
+              <label className="text-sm font-medium flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-gray-600" />
+                Languages
+              </label>
               
               {/* Primary Language Selection */}
               <div className="space-y-2">
@@ -825,7 +839,8 @@ export function PersonalityConfigPanel({ onSave, initialConfig }: PersonalityCon
             <div className="mt-8 pt-6 border-t border-gray-200">
               <div className="space-y-4">
                 <label className="text-lg font-semibold flex items-center gap-2">
-                  📋 Instructions Preview
+                  <Eye className="h-5 w-5 text-gray-600" />
+                  Instructions Preview
                 </label>
                 <div className="p-4 bg-gray-50 rounded-md text-sm whitespace-pre-wrap border max-h-64 overflow-y-auto">
                   <div className="prose prose-sm max-w-none">
