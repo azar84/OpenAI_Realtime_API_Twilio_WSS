@@ -1,6 +1,5 @@
 import { WebSocket } from 'ws';
 import { RealtimeAgent, RealtimeSession } from '@openai/agents/realtime';
-import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions';
 import { agentTools } from './agent-tools';
 import { getActiveAgentConfig } from './db';
 
@@ -27,107 +26,6 @@ function buildTurnDetectionConfig(agentConfig: any) {
   }
 }
 
-export async function handleCallConnection(ws: WebSocket, apiKey: string) {
-  console.log('Creating Twilio call connection with Agent SDK...');
-  
-  try {
-    // Get agent configuration from database
-    const agentConfig = await getActiveAgentConfig();
-    const enabledTools = agentConfig?.enabled_tools || [];
-    
-    // Filter tools based on enabled tools from database
-    const toolsToUse = agentTools.filter(tool => 
-      enabledTools.includes(tool.name)
-    );
-    
-    // Create agent with configuration from database
-    const twilioAgentName = agentConfig?.name || 'Twilio Agent';
-    const twilioInstructions = agentConfig?.instructions || 'You are a helpful assistant.';
-    console.log('🤖 Twilio Agent Instructions:', twilioInstructions);
-    const agent = new RealtimeAgent({
-      name: twilioAgentName,
-      instructions: twilioInstructions,
-      tools: toolsToUse,
-    });
-
-    // Create Twilio transport layer
-    const twilioTransport = new TwilioRealtimeTransportLayer({
-      twilioWebSocket: ws,
-    });
-
-// Create session with Twilio transport
-const session = new RealtimeSession(agent, {
-  transport: twilioTransport,
-  model: 'gpt-realtime',
-
-  config: {
-    // ✅ voice must be top-level, not under audio.output
-    voice: agentConfig?.voice || 'ash',
-
-    // (keep your formats + transcription if you want)
-    inputAudioTranscription: { model: 'whisper-1' },
-    inputAudioFormat: 'g711_ulaw',
-    outputAudioFormat: 'g711_ulaw',
-
-    modalities: ['text', 'audio'],
-    turnDetection: buildTurnDetectionConfig(agentConfig) as any,
-  },
-});
-
-
-    // Set up history tracking for frontend
-    session.on('history_updated', (history) => {
-      console.log('Twilio History updated:', history.length, 'items');
-      
-      // Send history updates to frontend via logs WebSocket
-      const broadcastToLogs = (global as any).broadcastToLogs;
-      if (broadcastToLogs) {
-        broadcastToLogs({
-          type: 'history_updated',
-          history: history
-        });
-      }
-    });
-
-    // Connect to OpenAI
-    await session.connect({ apiKey });
-    console.log('Twilio call connected with Agent SDK');
-
-    // Set up WebSocket event forwarding for logs
-    ws.on('close', () => {
-      console.log('Twilio call connection closed');
-    });
-
-    ws.on('error', (error) => {
-      console.error('Twilio call connection error:', error);
-    });
-
-  } catch (error) {
-    console.error('Error creating Twilio call connection:', error);
-    ws.close();
-  }
-}
-
-export function handleFrontendConnection(ws: WebSocket) {
-  console.log('Frontend connection established (logs)');
-  
-  ws.on('message', (data) => {
-    try {
-      const message = JSON.parse(data.toString());
-      console.log('Frontend message:', message);
-    } catch (error) {
-      console.error('Error parsing frontend message:', error);
-    }
-  });
-
-  ws.on('close', () => {
-    console.log('Frontend connection closed');
-  });
-
-  ws.on('error', (error) => {
-    console.error('Frontend connection error:', error);
-  });
-}
 
 export async function handleVoiceChatConnection(ws: WebSocket, apiKey: string) {
   console.log('Creating Voice Chat connection with Agent SDK (using WebSocket transport like Twilio)...');
