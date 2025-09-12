@@ -10,9 +10,6 @@ import {
   handleCallConnection,
   handleFrontendConnection,
 } from "./twilio-handler";
-import {
-  handleVoiceChatConnection,
-} from "./simple-session-manager";
 import { agentTools } from "./agent-tools";
 import { testConnection } from "./db";
 import { getEphemeralKey } from "./ephemeral";
@@ -69,7 +66,6 @@ app.get("/tools", (req, res) => {
 
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
-let currentVoiceChat: WebSocket | null = null;
 
 // Function to broadcast to logs WebSocket
 function broadcastToLogs(message: any) {
@@ -102,10 +98,6 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
       if (currentLogs) currentLogs.close();
       currentLogs = ws;
       handleFrontendConnection(currentLogs);
-    } else if (type === "voice-chat") {
-      if (currentVoiceChat) currentVoiceChat.close();
-      currentVoiceChat = ws;
-      await handleVoiceChatConnection(currentVoiceChat, OPENAI_API_KEY);
     } else {
       ws.close();
     }
