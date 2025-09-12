@@ -52,9 +52,9 @@ const Transcript: React.FC<TranscriptProps> = ({ items }) => {
               const Icon = isUser ? Phone : isTool ? Wrench : Bot;
 
               // Combine all text parts into a single string for display
-              const displayText = msg.content
-                ? msg.content.map((c) => c.text).join("")
-                : "";
+              const displayText = msg.content && Array.isArray(msg.content)
+                ? msg.content.map((c) => c.text || c || "").join("")
+                : msg.content || "";
 
               return (
                 <div key={i} className="flex items-start gap-3">

@@ -25,7 +25,20 @@ const PhoneNumberChecklist: React.FC<PhoneNumberChecklistProps> = ({
         <span className="text-sm text-gray-500">Number</span>
         <div className="flex items-center">
           <span className="font-medium w-36">
-            {isVisible ? selectedPhoneNumber || "None" : "••••••••••"}
+            {isVisible ? (
+              selectedPhoneNumber ? (
+                <a 
+                  href={`tel:${selectedPhoneNumber}`}
+                  className="text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  {selectedPhoneNumber}
+                </a>
+              ) : (
+                "None"
+              )
+            ) : (
+              "••••••••••"
+            )}
           </span>
           <Button
             variant="ghost"

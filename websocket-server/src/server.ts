@@ -15,6 +15,7 @@ import {
 } from "./simple-session-manager";
 import { agentTools } from "./agent-tools";
 import { testConnection } from "./db";
+import { getEphemeralKey } from "./ephemeral";
 
 dotenv.config();
 
@@ -33,6 +34,11 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.urlencoded({ extended: false }));
+
+// Add ephemeral key endpoint
+app.get('/api/ephemeral', async (req, res) => {
+  await getEphemeralKey(req, res);
+});
 
 const twimlPath = join(__dirname, "twiml.xml");
 const twimlTemplate = readFileSync(twimlPath, "utf-8");

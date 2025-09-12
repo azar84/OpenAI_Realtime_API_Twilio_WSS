@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, MessageSquare, User, Bot, Phone } from "lucide-react";
 import SessionConfigurationPanel from "./session-configuration-panel";
 import { PersonalityConfigPanel } from "./personality-config-panel";
-import VoiceChat from "./voice-chat";
+import VoiceChatWebRTC from "./voice-chat-webrtc";
 import PhoneNumberChecklist from "./phone-number-checklist";
 import Transcript from "./transcript";
 import FunctionCallsPanel from "./function-calls-panel";
@@ -114,7 +114,7 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   return (
     <div className="h-full flex">
       {/* Sidebar Navigation */}
-      <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
         </div>
@@ -149,8 +149,9 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
 
         {/* Voice Chat in sidebar */}
         <div className="p-4 border-t border-gray-200">
-          <VoiceChat 
+          <VoiceChatWebRTC 
             onTranscript={(text, isUser) => {
+              console.log("📥 Received transcript in sidebar:", { text, isUser });
               // Add voice transcripts to the items list
               const newItem: Item = {
                 id: `voice-${Date.now()}`,
@@ -160,7 +161,12 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
                 content: [{ type: "text", text: text }],
                 timestamp: new Date().toISOString()
               };
-              setItems(prev => [...prev, newItem]);
+              console.log("📝 Adding new item to conversation:", newItem);
+              setItems(prev => {
+                const updated = [...prev, newItem];
+                console.log("📊 Updated items count:", updated.length);
+                return updated;
+              });
             }}
           />
         </div>
