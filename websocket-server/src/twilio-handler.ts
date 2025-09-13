@@ -1,6 +1,8 @@
 import { RawData, WebSocket } from "ws";
 import functions from "./functionHandlers";
 import { getActiveAgentConfig } from "./db";
+import { normalizeConfig } from "./agent-config-mapper";
+import agentInstructions from "./agent-instructions";
 
 interface Session {
   twilioConn?: WebSocket;
@@ -94,7 +96,7 @@ function handleTwilioMessage(data: RawData) {
       session.latestMediaTimestamp = 0;
       session.lastAssistantItem = undefined;
       session.responseStartTimestamp = undefined;
-      tryConnectModel();
+      tryConnectModel().catch(console.error);
       break;
     case "media":
       session.latestMediaTimestamp = msg.media.timestamp;
@@ -124,13 +126,19 @@ function handleFrontendMessage(data: RawData) {
   }
 }
 
-function tryConnectModel() {
+async function tryConnectModel() {
   if (!session.twilioConn || !session.streamSid || !session.openAIApiKey)
     return;
   if (isOpen(session.modelConn)) return;
 
+  // Get the model from database configuration
+  const agentConfig = await getActiveAgentConfig();
+  const model = agentConfig?.model || 'gpt-4o-realtime-preview-2024-12-17';
+  
+  console.log('🔗 Connecting Twilio to OpenAI with model:', model);
+
   session.modelConn = new WebSocket(
-    "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17",
+    `wss://api.openai.com/v1/realtime?model=${model}`,
     {
       headers: {
         Authorization: `Bearer ${session.openAIApiKey}`,
@@ -143,36 +151,44 @@ function tryConnectModel() {
     const config = session.saved_config || {};
     
     // Get agent configuration from database
+    console.log('🔍 Fetching agent configuration for Twilio...');
     const agentConfig = await getActiveAgentConfig();
-    const voice = agentConfig?.voice || 'ash';
-    const instructions = agentConfig?.instructions || 'You are a helpful assistant.';
-    const temperature = agentConfig?.temperature || 0.7;
-    const maxTokens = agentConfig?.max_tokens;
-    const turnDetectionType = agentConfig?.turn_detection_type || 'server_vad';
+    if (!agentConfig) {
+      console.error('❌ No active agent configuration found for Twilio');
+      return;
+    }
+    
+    // Normalize config and get fresh template-based instructions (same as WebRTC)
+    const normalizedConfig = normalizeConfig(agentConfig);
+    console.log('📝 Generating fresh instructions from template for Twilio...');
+    const freshInstructions = await agentInstructions();
+    
+    const validTemperature = Math.max(0.6, Math.min(1.0, normalizedConfig.temperature));
     
     console.log('🤖 Twilio Agent Config:', {
-      voice,
-      instructions: instructions.substring(0, 100) + '...',
-      temperature,
-      maxTokens,
-      turnDetectionType
+      model: normalizedConfig.model,
+      voice: normalizedConfig.voice,
+      temperature: validTemperature,
+      maxTokens: normalizedConfig.max_output_tokens,
+      turnDetection: normalizedConfig.turn_detection,
+      instructions: freshInstructions.substring(0, 100) + '...',
     });
     
     jsonSend(session.modelConn, {
       type: "session.update",
       session: {
-        modalities: ["text", "audio"],
-        turn_detection: { type: turnDetectionType },
-        voice: voice,
-        instructions: instructions,
-        temperature: temperature,
-        ...(maxTokens && { max_response_output_tokens: maxTokens }),
-       
-   
-        input_audio_transcription: { model: "whisper-1" },
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-      
+        model: normalizedConfig.model,
+        voice: normalizedConfig.voice,
+        instructions: freshInstructions,
+        temperature: validTemperature,
+        max_response_output_tokens: normalizedConfig.max_output_tokens || undefined,
+        turn_detection: normalizedConfig.turn_detection,
+        modalities: normalizedConfig.modalities,
+        input_audio_transcription: { 
+          model: 'whisper-1'
+        },
+        input_audio_format: "g711_ulaw", // Twilio uses g711_ulaw
+        output_audio_format: "g711_ulaw", // Twilio uses g711_ulaw
         ...config,
       },
     });
