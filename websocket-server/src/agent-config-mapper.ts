@@ -23,8 +23,62 @@ export type DBAgentConfig = {
   modalities: string[] | null; // e.g., ["text","audio"]
   tools_enabled: boolean | null;
   enabled_tools: string[] | null;
+  
+  // Additional turn detection fields
+  turn_detection_eagerness: string | null;
+  turn_detection_create_response: boolean | null;
+  turn_detection_interrupt_response: boolean | null;
+  max_output_tokens: number | null;
+
+  // Language configuration
+  primary_language: string | null;
+  secondary_languages: string[] | null;
+  primary_language_id: number | null;
+  secondary_language_ids: number[] | null;
+  primary_language_code: string | null;
+  primary_language_name: string | null;
+  primary_language_native_name: string | null;
+  secondary_language_codes: string[] | null;
+  secondary_language_names: string[] | null;
+
+  // Personality configuration fields
+  config_title: string | null;
+  config_description: string | null;
+  identity_option_id: number | null;
+  task_option_id: number | null;
+  demeanor_option_id: number | null;
+  tone_option_id: number | null;
+  enthusiasm_option_id: number | null;
+  formality_option_id: number | null;
+  emotion_option_id: number | null;
+  filler_words_option_id: number | null;
+  pacing_option_id: number | null;
+  custom_instructions: string[] | null;
+  
+  // Personality values (from JOIN query)
+  identity_value: string | null;
+  task_value: string | null;
+  demeanor_value: string | null;
+  tone_value: string | null;
+  enthusiasm_value: string | null;
+  formality_value: string | null;
+  emotion_value: string | null;
+  filler_words_value: string | null;
+  pacing_value: string | null;
+  
 
   is_active: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PersonalityOption = {
+  id: number;
+  category: string;
+  value: string;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number;
   created_at?: string;
   updated_at?: string;
 };

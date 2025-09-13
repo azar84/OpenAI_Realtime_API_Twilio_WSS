@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import TopBar from "@/components/top-bar";
 import ChecklistAndConfig from "@/components/checklist-and-config";
 import SidebarInterface from "@/components/sidebar-interface";
-import { PersonalityConfigPanel } from "@/components/personality-config-panel";
 import { Item } from "@/components/types";
 import handleRealtimeEvent from "@/lib/handle-realtime-event";
 
@@ -15,6 +14,7 @@ const CallInterface = () => {
   const [callStatus, setCallStatus] = useState("disconnected");
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [personalityConfig, setPersonalityConfig] = useState<any>(null);
+  const [agentName, setAgentName] = useState<string>("");
   const [activeTab, setActiveTab] = useState("config");
 
   // Load personality config on mount
@@ -29,6 +29,9 @@ const CallInterface = () => {
         const config = await response.json();
         if (config.personality_config) {
           setPersonalityConfig(config.personality_config);
+        }
+        if (config.name) {
+          setAgentName(config.name);
         }
       }
     } catch (error) {
@@ -484,6 +487,7 @@ const CallInterface = () => {
           onSaveConfiguration={handleSaveConfiguration}
           onSavePersonality={handleSavePersonality}
           personalityConfig={personalityConfig}
+          agentName={agentName}
         />
       </div>
     </div>

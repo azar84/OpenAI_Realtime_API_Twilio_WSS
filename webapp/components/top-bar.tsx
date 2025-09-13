@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { BookOpen, FileText } from "lucide-react";
+import { BookOpen, FileText, Settings } from "lucide-react";
 import Link from "next/link";
 
 const TopBar = () => {
@@ -18,6 +18,15 @@ const TopBar = () => {
         <h1 className="text-xl font-semibold">S2S Agent with Twilio Integration</h1>
       </div>
       <div className="flex gap-3">
+        <Button variant="ghost" size="sm">
+          <Link
+            href="/instructions"
+            className="flex items-center gap-2"
+          >
+            <FileText className="w-4 h-4" />
+            Instructions
+          </Link>
+        </Button>
         <Button variant="ghost" size="sm">
           <Link
             href="https://platform.openai.com/docs/guides/realtime"

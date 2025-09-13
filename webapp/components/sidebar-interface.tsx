@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Settings, MessageSquare, User, Bot, Phone } from "lucide-react";
+import { Settings, MessageSquare, User, Bot, Phone, Database } from "lucide-react";
 import SessionConfigurationPanel from "./session-configuration-panel";
-import { PersonalityConfigPanel } from "./personality-config-panel";
+import ConfigurationManagementPanel from "./configuration-management-panel";
 import VoiceChatWebRTC from "./voice-chat-webrtc";
 import PhoneNumberChecklist from "./phone-number-checklist";
 import Transcript from "./transcript";
@@ -23,9 +23,10 @@ interface SidebarInterfaceProps {
   onSaveConfiguration: (config: any) => Promise<void>;
   onSavePersonality?: (personality: any) => Promise<void>;
   personalityConfig?: any;
+  agentName?: string;
 }
 
-type TabType = "agent" | "personality" | "conversation";
+type TabType = "agent" | "personas" | "conversation";
 
 const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   selectedPhoneNumber,
@@ -39,6 +40,7 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   onSaveConfiguration,
   onSavePersonality,
   personalityConfig,
+  agentName,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("conversation");
 
@@ -49,17 +51,17 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
       icon: MessageSquare,
       description: "Chat history and voice interaction"
     },
+        {
+          id: "personas" as TabType,
+          label: "Personas",
+          icon: Database,
+          description: "Manage agent personas"
+        },
     {
       id: "agent" as TabType,
       label: "Agent Config",
       icon: Settings,
       description: "AI settings and tools"
-    },
-    {
-      id: "personality" as TabType,
-      label: "Personality",
-      icon: Bot,
-      description: "Personality and tone configuration"
     }
   ];
 
@@ -74,13 +76,10 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
             />
           </div>
         );
-      case "personality":
+      case "personas":
         return (
           <div className="h-full flex flex-col">
-            <PersonalityConfigPanel
-              onSave={onSavePersonality || (() => Promise.resolve())}
-              initialConfig={personalityConfig}
-            />
+            <ConfigurationManagementPanel />
           </div>
         );
       
