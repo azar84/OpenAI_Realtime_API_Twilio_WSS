@@ -60,6 +60,9 @@ interface AgentConfig {
   turn_detection_threshold?: number | string;
   turn_detection_prefix_padding_ms?: number | string;
   turn_detection_silence_duration_ms?: number | string;
+  turn_detection_create_response?: boolean;
+  turn_detection_interrupt_response?: boolean;
+  turn_detection_eagerness?: string;
   modalities?: string[];
   tools_enabled?: boolean;
   enabled_tools?: string[];
@@ -130,6 +133,9 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
     turn_detection_threshold: '',
     turn_detection_prefix_padding_ms: '',
     turn_detection_silence_duration_ms: '',
+    turn_detection_create_response: false,
+    turn_detection_interrupt_response: false,
+    turn_detection_eagerness: '',
     modalities: [] as string[],
     tools_enabled: false,
     enabled_tools: [] as string[]
@@ -193,6 +199,9 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
         turn_detection_threshold: formData.turn_detection_threshold ? parseFloat(formData.turn_detection_threshold) : null,
         turn_detection_prefix_padding_ms: formData.turn_detection_prefix_padding_ms ? parseInt(formData.turn_detection_prefix_padding_ms) : null,
         turn_detection_silence_duration_ms: formData.turn_detection_silence_duration_ms ? parseInt(formData.turn_detection_silence_duration_ms) : null,
+        turn_detection_create_response: Boolean(formData.turn_detection_create_response),
+        turn_detection_interrupt_response: Boolean(formData.turn_detection_interrupt_response),
+        turn_detection_eagerness: formData.turn_detection_eagerness || null,
         tools_enabled: Boolean(formData.tools_enabled),
         modalities: Array.isArray(formData.modalities) ? formData.modalities : [],
         enabled_tools: Array.isArray(formData.enabled_tools) ? formData.enabled_tools : []
@@ -265,6 +274,9 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
       turn_detection_threshold: config.turn_detection_threshold?.toString() || '',
       turn_detection_prefix_padding_ms: config.turn_detection_prefix_padding_ms?.toString() || '',
       turn_detection_silence_duration_ms: config.turn_detection_silence_duration_ms?.toString() || '',
+      turn_detection_create_response: config.turn_detection_create_response || false,
+      turn_detection_interrupt_response: config.turn_detection_interrupt_response || false,
+      turn_detection_eagerness: config.turn_detection_eagerness || '',
       modalities: config.modalities || [],
       tools_enabled: config.tools_enabled || false,
       enabled_tools: config.enabled_tools || []
@@ -338,6 +350,9 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
       turn_detection_threshold: '',
       turn_detection_prefix_padding_ms: '',
       turn_detection_silence_duration_ms: '',
+      turn_detection_create_response: false,
+      turn_detection_interrupt_response: false,
+      turn_detection_eagerness: '',
       modalities: [],
       tools_enabled: false,
       enabled_tools: []
@@ -801,8 +816,13 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                         </SelectTrigger>
                         <SelectContent className="max-w-[300px]">
                           <SelectItem value="gpt-4o-realtime-preview">GPT-4o Realtime Preview</SelectItem>
-                          <SelectItem value="gpt-4o-realtime-preview-2024-10-01">GPT-4o Realtime Preview (2024-10-01)</SelectItem>
+                          <SelectItem value="gpt-realtime-2025-08-28">GPT Realtime (2025-08-28)</SelectItem>
+                          <SelectItem value="gpt-realtime">GPT Realtime</SelectItem>
+                          <SelectItem value="gpt-4o-realtime-preview-2025-06-03">GPT-4o Realtime Preview (2025-06-03)</SelectItem>
                           <SelectItem value="gpt-4o-realtime-preview-2024-12-17">GPT-4o Realtime Preview (2024-12-17)</SelectItem>
+                          <SelectItem value="gpt-4o-realtime-preview-2024-10-01">GPT-4o Realtime Preview (2024-10-01)</SelectItem>
+                          <SelectItem value="gpt-4o-mini-realtime-preview-2024-12-17">GPT-4o Mini Realtime Preview (2024-12-17)</SelectItem>
+                          <SelectItem value="gpt-4o-mini-realtime-preview">GPT-4o Mini Realtime Preview</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -867,48 +887,115 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                           <SelectValue placeholder="Select detection type" />
                         </SelectTrigger>
                         <SelectContent className="max-w-[300px]">
-                          <SelectItem value="server_vad">Server VAD</SelectItem>
-                          <SelectItem value="semantic_vad">Semantic VAD</SelectItem>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">None (Manual)</SelectItem>
+                          <SelectItem value="server_vad">Server VAD (Silence-based)</SelectItem>
+                          <SelectItem value="semantic_vad">Semantic VAD (Model-based)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-2 overflow-hidden">
-                      <Label htmlFor="turn_detection_threshold">Turn Detection Threshold</Label>
-                      <Input
-                        id="turn_detection_threshold"
-                        type="number"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={formData.turn_detection_threshold}
-                        onChange={(e) => setFormData({ ...formData, turn_detection_threshold: e.target.value })}
-                        placeholder="0.5"
-                      />
-                    </div>
+                    {/* Server VAD Parameters */}
+                    {formData.turn_detection_type === 'server_vad' && (
+                      <div className="space-y-4 pl-4 border-l-2 border-blue-200">
+                        <div className="space-y-2">
+                          <Label htmlFor="turn_detection_threshold">Threshold (0.0-1.0)</Label>
+                          <Input
+                            id="turn_detection_threshold"
+                            type="number"
+                            min="0"
+                            max="1"
+                            step="0.1"
+                            value={formData.turn_detection_threshold}
+                            onChange={(e) => setFormData({ ...formData, turn_detection_threshold: e.target.value })}
+                            placeholder="0.5"
+                          />
+                          <p className="text-xs text-gray-500">Higher values require louder/clearer speech</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="turn_detection_prefix_padding_ms">Prefix Padding (ms)</Label>
+                            <Input
+                              id="turn_detection_prefix_padding_ms"
+                              type="number"
+                              value={formData.turn_detection_prefix_padding_ms}
+                              onChange={(e) => setFormData({ ...formData, turn_detection_prefix_padding_ms: e.target.value })}
+                              placeholder="300"
+                            />
+                            <p className="text-xs text-gray-500">Audio before speech start</p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="turn_detection_silence_duration_ms">Silence Duration (ms)</Label>
+                            <Input
+                              id="turn_detection_silence_duration_ms"
+                              type="number"
+                              value={formData.turn_detection_silence_duration_ms}
+                              onChange={(e) => setFormData({ ...formData, turn_detection_silence_duration_ms: e.target.value })}
+                              placeholder="200"
+                            />
+                            <p className="text-xs text-gray-500">Silence before speech end</p>
+                          </div>
+                        </div>
 
-                    <div className="space-y-2 overflow-hidden">
-                      <Label htmlFor="turn_detection_prefix_padding_ms">Prefix Padding (ms)</Label>
-                      <Input
-                        id="turn_detection_prefix_padding_ms"
-                        type="number"
-                        value={formData.turn_detection_prefix_padding_ms}
-                        onChange={(e) => setFormData({ ...formData, turn_detection_prefix_padding_ms: e.target.value })}
-                        placeholder="300"
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.turn_detection_create_response}
+                              onChange={(e) => setFormData({ ...formData, turn_detection_create_response: e.target.checked })}
+                            />
+                            <span>Create Response</span>
+                          </Label>
+                          <p className="text-xs text-gray-500">Auto-generate response after speech end detection</p>
+                        </div>
 
-                    <div className="space-y-2 overflow-hidden">
-                      <Label htmlFor="turn_detection_silence_duration_ms">Silence Duration (ms)</Label>
-                      <Input
-                        id="turn_detection_silence_duration_ms"
-                        type="number"
-                        value={formData.turn_detection_silence_duration_ms}
-                        onChange={(e) => setFormData({ ...formData, turn_detection_silence_duration_ms: e.target.value })}
-                        placeholder="200"
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.turn_detection_interrupt_response}
+                              onChange={(e) => setFormData({ ...formData, turn_detection_interrupt_response: e.target.checked })}
+                            />
+                            <span>Interrupt Response</span>
+                          </Label>
+                          <p className="text-xs text-gray-500">Allow interrupting responses when user speaks</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Semantic VAD Parameters */}
+                    {formData.turn_detection_type === 'semantic_vad' && (
+                      <div className="space-y-4 pl-4 border-l-2 border-green-200">
+                        <div className="space-y-2">
+                          <Label htmlFor="turn_detection_eagerness">Eagerness</Label>
+                          <Select value={formData.turn_detection_eagerness} onValueChange={(value) => setFormData({ ...formData, turn_detection_eagerness: value })}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select eagerness level" />
+                            </SelectTrigger>
+                            <SelectContent className="max-w-[300px]">
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="auto">Auto</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-gray-500">How aggressively to chunk speech segments</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={formData.turn_detection_interrupt_response}
+                              onChange={(e) => setFormData({ ...formData, turn_detection_interrupt_response: e.target.checked })}
+                            />
+                            <span>Interrupt Response</span>
+                          </Label>
+                          <p className="text-xs text-gray-500">Allow interrupting responses when user speaks</p>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-2 overflow-hidden md:col-span-2">
                       <Label>Modalities</Label>

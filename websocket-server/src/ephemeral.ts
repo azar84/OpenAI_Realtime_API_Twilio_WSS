@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getActiveAgentConfig } from './db';
 import { normalizeConfig } from './agent-config-mapper';
+import agentInstructions from './agent-instructions';
 
 export const getEphemeralKey = async (_req: Request, res: Response) => {
   try {
@@ -25,6 +26,10 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
     // Normalize the configuration to get proper settings
     const normalizedConfig = normalizeConfig(agentConfig);
     
+    // Get fresh template-based instructions instead of old database field
+    console.log('📝 Generating fresh instructions from template...');
+    const freshInstructions = await agentInstructions();
+    
     // Ensure temperature is within valid range (0.6 <= temperature <= 1.0)
     const validTemperature = Math.max(0.6, Math.min(1.0, normalizedConfig.temperature));
     
@@ -32,8 +37,12 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
     console.log('  - Model:', normalizedConfig.model);
     console.log('  - Voice:', normalizedConfig.voice);
     console.log('  - Temperature:', validTemperature, '(original:', normalizedConfig.temperature, ')');
+    console.log('  - Max Tokens:', normalizedConfig.max_output_tokens);
     console.log('  - VAD:', normalizedConfig.turn_detection);
     console.log('  - Modalities:', normalizedConfig.modalities);
+    console.log('  - Tools Enabled:', normalizedConfig.toolsEnabled);
+    console.log('  - Available Tools:', normalizedConfig.enabledTools.length);
+    console.log('  - Audio Format: PCM16 (WebRTC optimized)');
     
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
@@ -44,11 +53,18 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
       body: JSON.stringify({
         model: normalizedConfig.model,
         voice: normalizedConfig.voice,
-        instructions: normalizedConfig.instructions,
+        instructions: freshInstructions,
         temperature: validTemperature,
+        max_response_output_tokens: normalizedConfig.max_output_tokens || undefined,
         turn_detection: normalizedConfig.turn_detection,
         modalities: normalizedConfig.modalities,
-        input_audio_transcription: { model: 'whisper-1' }
+        input_audio_transcription: { 
+          model: 'whisper-1'
+        },
+        input_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
+        output_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
+        // Tools are not supported in ephemeral key creation for WebRTC
+        // They will be handled by the WebRTC client directly
       }),
     });
 

@@ -705,6 +705,24 @@ export async function updateAgentConfig(id: number, configData: any): Promise<an
       paramCount++;
     }
     
+    if (configData.turn_detection_create_response !== undefined) {
+      updateFields.push(`turn_detection_create_response = $${paramCount}`);
+      values.push(configData.turn_detection_create_response);
+      paramCount++;
+    }
+    
+    if (configData.turn_detection_interrupt_response !== undefined) {
+      updateFields.push(`turn_detection_interrupt_response = $${paramCount}`);
+      values.push(configData.turn_detection_interrupt_response);
+      paramCount++;
+    }
+    
+    if (configData.turn_detection_eagerness !== undefined) {
+      updateFields.push(`turn_detection_eagerness = $${paramCount}`);
+      values.push(configData.turn_detection_eagerness);
+      paramCount++;
+    }
+    
     if (configData.modalities !== undefined) {
       updateFields.push(`modalities = $${paramCount}`);
       values.push(JSON.stringify(configData.modalities));

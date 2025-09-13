@@ -398,27 +398,6 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
           )}
         </div>
 
-        {/* Test Button and Event Counter */}
-        {isConnected && (
-          <div className="flex justify-center gap-2">
-            <Button 
-              onClick={() => {
-                console.log("🧪 Testing transcript callback...");
-                if (onTranscript) {
-                  onTranscript("Test message from WebRTC", true);
-                  onTranscript("Test AI response from WebRTC", false);
-                }
-              }}
-              variant="outline"
-              size="sm"
-            >
-              Test Transcript
-            </Button>
-            <div className="text-xs text-gray-500 flex items-center">
-              Events: {eventCountRef.current}
-            </div>
-          </div>
-        )}
 
         {/* Instructions */}
         <div className="text-sm text-gray-600 text-center">

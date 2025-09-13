@@ -19,15 +19,15 @@ export type DBAgentConfig = {
   turn_detection_threshold: number | null;           // server_vad only
   turn_detection_prefix_padding_ms: number | null;   // server_vad only
   turn_detection_silence_duration_ms: number | null; // server_vad only
+  
+  // Additional turn detection fields
+  turn_detection_eagerness: string | null;           // semantic_vad only
+  turn_detection_create_response: boolean | null;    // server_vad only
+  turn_detection_interrupt_response: boolean | null; // server_vad and semantic_vad
 
   modalities: string[] | null; // e.g., ["text","audio"]
   tools_enabled: boolean | null;
   enabled_tools: string[] | null;
-  
-  // Additional turn detection fields
-  turn_detection_eagerness: string | null;
-  turn_detection_create_response: boolean | null;
-  turn_detection_interrupt_response: boolean | null;
   max_output_tokens: number | null;
 
   // Language configuration
@@ -85,8 +85,8 @@ export type PersonalityOption = {
 
 // Tool registry (name -> tool). Fill with your real tools
 const TOOL_REGISTRY: Record<string, ReturnType<typeof tool>> = {
-  get_weather_from_coords: tool({
-    name: "get_weather_from_coords",
+  weather: tool({
+    name: "weather",
     description: "Get current weather for given coordinates",
     parameters: z.object({ 
       latitude: z.number().describe("Latitude coordinate"),
@@ -97,8 +97,8 @@ const TOOL_REGISTRY: Record<string, ReturnType<typeof tool>> = {
       return `Weather at ${input.latitude}, ${input.longitude}: sunny, 72°F`;
     },
   }),
-  lookup_customer: tool({
-    name: "lookup_customer",
+  customer_lookup: tool({
+    name: "customer_lookup",
     description: "Find a customer and recent info by phone number via n8n workflow",
     parameters: z.object({ 
       phone: z.string().describe("E.164 phone number")
@@ -106,6 +106,17 @@ const TOOL_REGISTRY: Record<string, ReturnType<typeof tool>> = {
     async execute(input: { phone: string }) {
       // This would call your actual customer lookup API
       return { found: true, id: "cust_123", phone: input.phone, lastOrder: "2024-01-15" };
+    },
+  }),
+  knowledge_base: tool({
+    name: "knowledge_base",
+    description: "Answer questions about the company, contact information, products, services, etc.",
+    parameters: z.object({ 
+      query: z.string().describe("Search query to find information in the knowledge base")
+    }),
+    async execute(input: { query: string }) {
+      // This would call your actual knowledge base API
+      return `Knowledge base response for: ${input.query}`;
     },
   }),
 };
@@ -128,24 +139,32 @@ export function normalizeConfig(db: DBAgentConfig) {
         threshold?: number;
         prefix_padding_ms?: number;
         silence_duration_ms?: number;
+        create_response?: boolean;
+        interrupt_response?: boolean;
       }
     | {
         type: "semantic_vad";
         eagerness?: "low" | "medium" | "high";
-        create_response?: boolean;
         interrupt_response?: boolean;
       };
 
   switch (db.turn_detection_type ?? "server_vad") {
     case "none":
-      turn_detection = { type: "none" };
+      // OpenAI Realtime API doesn't support "none", so we use server_vad with minimal settings
+      turn_detection = {
+        type: "server_vad",
+        threshold: 0.1, // Very low threshold to be permissive
+        prefix_padding_ms: 0,
+        silence_duration_ms: 1000, // Longer silence to avoid cutting off
+        create_response: false, // Manual response control
+        interrupt_response: true,
+      };
       break;
     case "semantic_vad":
       turn_detection = {
         type: "semantic_vad",
-        eagerness: "medium",
-        create_response: true,
-        interrupt_response: true,
+        eagerness: (db.turn_detection_eagerness as "low" | "medium" | "high") ?? "medium",
+        interrupt_response: db.turn_detection_interrupt_response ?? true,
       };
       break;
     default:
@@ -155,6 +174,8 @@ export function normalizeConfig(db: DBAgentConfig) {
         threshold: db.turn_detection_threshold ?? 0.5,
         prefix_padding_ms: db.turn_detection_prefix_padding_ms ?? 300,
         silence_duration_ms: db.turn_detection_silence_duration_ms ?? 200,
+        create_response: db.turn_detection_create_response ?? true,
+        interrupt_response: db.turn_detection_interrupt_response ?? true,
       };
   }
 
