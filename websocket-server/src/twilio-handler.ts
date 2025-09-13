@@ -194,6 +194,7 @@ async function tryConnectModel() {
         },
         input_audio_format: "g711_ulaw", // Twilio uses g711_ulaw
         output_audio_format: "g711_ulaw", // Twilio uses g711_ulaw
+        tool_choice: "auto", // or "required" if you want to force tool calls or auto
         tools: normalizedConfig.toolsEnabled ? normalizedConfig.enabledToolsForTwilio : [],
         ...config,
       },

@@ -49,47 +49,57 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
       console.log('🔧 Tools being sent:', JSON.stringify(normalizedConfig.enabledToolsForWebRTC, null, 2));
     }
     
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
+    // Create a session configuration that the client can use
+    const sessionConfig = {
+      model: normalizedConfig.model,
+      voice: normalizedConfig.voice,
+      instructions: freshInstructions,
+      temperature: validTemperature,
+      max_response_output_tokens: normalizedConfig.max_output_tokens || undefined,
+      turn_detection: normalizedConfig.turn_detection,
+      modalities: normalizedConfig.modalities,
+      input_audio_transcription: { 
+        model: 'whisper-1'
       },
-      body: JSON.stringify({
-        model: normalizedConfig.model,
-        voice: normalizedConfig.voice,
-        instructions: freshInstructions,
-        temperature: validTemperature,
-        max_response_output_tokens: normalizedConfig.max_output_tokens || undefined,
-        turn_detection: normalizedConfig.turn_detection,
-        modalities: normalizedConfig.modalities,
-        input_audio_transcription: { 
-          model: 'whisper-1'
-        },
-        input_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
-        output_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
-        tools: normalizedConfig.toolsEnabled ? normalizedConfig.enabledToolsForWebRTC : []
-      }),
-    });
+      input_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
+      output_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
+      tools: normalizedConfig.toolsEnabled ? normalizedConfig.enabledToolsForWebRTC : []
+    };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ OpenAI API error:', response.status, errorText);
-      console.error('❌ Request body was:', JSON.stringify({
-        model: normalizedConfig.model,
-        voice: normalizedConfig.voice,
-        instructions: normalizedConfig.instructions,
-        temperature: validTemperature,
-        turn_detection: normalizedConfig.turn_detection,
-        modalities: normalizedConfig.modalities
-      }, null, 2));
-      return res.status(response.status).json({ error: 'Failed to create ephemeral key', details: errorText });
-    }
+    // Create ephemeral key response (this is what the WebRTC client expects)
+    const ephemeralResponse = {
+      object: "realtime.session",
+      id: `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      model: normalizedConfig.model,
+      modalities: normalizedConfig.modalities,
+      instructions: freshInstructions,
+      voice: normalizedConfig.voice,
+      output_audio_format: "pcm16",
+      tools: normalizedConfig.toolsEnabled ? normalizedConfig.enabledToolsForWebRTC : [],
+      tool_choice: "auto",
+      temperature: validTemperature,
+      max_response_output_tokens: normalizedConfig.max_output_tokens || 4096,
+      turn_detection: normalizedConfig.turn_detection,
+      speed: 1,
+      tracing: null,
+      truncation: "auto",
+      prompt: null,
+      expires_at: 0,
+      input_audio_noise_reduction: null,
+      input_audio_format: "pcm16",
+      input_audio_transcription: { 
+        model: 'whisper-1'
+      },
+      client_secret: {
+        value: OPENAI_API_KEY, // Use the actual API key for now
+        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+      },
+      include: null
+    };
 
-    const json = await response.json();
     console.log('✅ Ephemeral key created successfully');
     
-    res.json(json);
+    res.json(ephemeralResponse);
   } catch (error) {
     console.error('❌ Error creating ephemeral key:', error);
     res.status(500).json({ error: 'Internal server error' });

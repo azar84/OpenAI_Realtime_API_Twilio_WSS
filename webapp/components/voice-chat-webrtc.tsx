@@ -25,17 +25,61 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
   const userTranscriptRef = useRef<string>('');
   const aiTranscriptRef = useRef<string>('');
 
-  // Function to fetch a new ephemeral key
-  const fetchEphemeralKey = async (): Promise<string> => {
-    console.log("🔑 Fetching fresh ephemeral key...");
+  // Function to fetch ephemeral key and configuration
+  const fetchEphemeralConfig = async (): Promise<{key: string, config: any}> => {
+    console.log("🔑 Fetching ephemeral key and configuration...");
     const response = await fetch('http://localhost:8081/api/ephemeral');
     if (!response.ok) {
       throw new Error(`Failed to get ephemeral key: ${response.status}`);
     }
-    const { client_secret } = await response.json();
-    const key = client_secret.value;
-    console.log("✅ Fresh ephemeral key obtained");
-    return key;
+    const ephemeralData = await response.json();
+    const key = ephemeralData.client_secret.value;
+    console.log("✅ Ephemeral key and configuration obtained");
+    console.log("📋 Configuration:", {
+      model: ephemeralData.model,
+      voice: ephemeralData.voice,
+      tools: ephemeralData.tools?.length || 0,
+      temperature: ephemeralData.temperature,
+      instructions: ephemeralData.instructions?.substring(0, 100) + '...'
+    });
+    return { key, config: ephemeralData };
+  };
+
+  // Function to send session configuration
+  const sendSessionConfiguration = (ephemeralConfig: any) => {
+    console.log("⚙️ Sending session configuration from database...");
+    if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+      const sessionConfig = {
+        type: "session.update",
+        session: {
+          model: ephemeralConfig.model,
+          voice: ephemeralConfig.voice,
+          instructions: ephemeralConfig.instructions,
+          temperature: ephemeralConfig.temperature,
+          max_response_output_tokens: ephemeralConfig.max_response_output_tokens,
+          turn_detection: ephemeralConfig.turn_detection,
+          modalities: ephemeralConfig.modalities,
+          input_audio_transcription: ephemeralConfig.input_audio_transcription,
+          input_audio_format: ephemeralConfig.input_audio_format,
+          output_audio_format: ephemeralConfig.output_audio_format,
+          tools: ephemeralConfig.tools || [],
+          tool_choice: ephemeralConfig.tool_choice || "auto"
+        }
+      };
+      
+      console.log("📋 Session configuration:", {
+        model: sessionConfig.session.model,
+        voice: sessionConfig.session.voice,
+        temperature: sessionConfig.session.temperature,
+        tools: sessionConfig.session.tools.length,
+        instructions: sessionConfig.session.instructions?.substring(0, 100) + '...'
+      });
+      
+      dataChannelRef.current.send(JSON.stringify(sessionConfig));
+      console.log("✅ Session configuration sent");
+    } else {
+      console.error("❌ Data channel not ready for session configuration");
+    }
   };
 
   // Function to set up key renewal
@@ -48,8 +92,8 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
     // Renew key every 45 seconds (before 1-minute expiration)
     keyRenewalIntervalRef.current = setInterval(async () => {
       try {
-        const newKey = await fetchEphemeralKey();
-        currentEphemeralKeyRef.current = newKey;
+        const { key } = await fetchEphemeralConfig();
+        currentEphemeralKeyRef.current = key;
         console.log("🔄 Ephemeral key renewed");
       } catch (error) {
         console.error("❌ Failed to renew ephemeral key:", error);
@@ -61,8 +105,8 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
     try {
       setConnectionStatus("Connecting...");
       
-      // 1) Get a fresh ephemeral key from backend
-      const EPHEMERAL = await fetchEphemeralKey();
+      // 1) Get ephemeral key and configuration from backend
+      const { key: EPHEMERAL, config: ephemeralConfig } = await fetchEphemeralConfig();
       currentEphemeralKeyRef.current = EPHEMERAL;
 
       // 2) Create a PeerConnection
@@ -88,6 +132,18 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
 
       // 5) Create data channel for events
       dataChannelRef.current = peerConnectionRef.current.createDataChannel("oai-events");
+      
+      // Set up data channel event handlers
+      dataChannelRef.current.onopen = () => {
+        console.log("📡 Data channel opened successfully");
+        // Send session configuration when data channel is ready
+        sendSessionConfiguration(ephemeralConfig);
+      };
+      
+      dataChannelRef.current.onerror = (error) => {
+        console.error("📡 Data channel error:", error);
+      };
+      
       dataChannelRef.current.onmessage = (async (event) => {
         eventCountRef.current++;
         console.log(`📨 Event #${eventCountRef.current} from OpenAI:`, event.data);
