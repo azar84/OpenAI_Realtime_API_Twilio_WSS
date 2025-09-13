@@ -45,6 +45,23 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
     return { key, config: ephemeralData };
   };
 
+  // Define knowledge base tool schema (server-side safe)
+  const knowledgeBaseToolSchema = {
+    name: 'knowledge_base',
+    type: 'function',
+    description: "Search the company knowledge base for information about products, services, policies, and procedures. Use this first before saying you don't have information.",
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query to find information in the knowledge base',
+        },
+      },
+      required: ['query'],
+    },
+  };
+
   // Function to send session configuration
   const sendSessionConfiguration = (ephemeralConfig: any) => {
     console.log("⚙️ Sending session configuration from database...");
@@ -62,7 +79,8 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
           input_audio_transcription: ephemeralConfig.input_audio_transcription,
           input_audio_format: ephemeralConfig.input_audio_format,
           output_audio_format: ephemeralConfig.output_audio_format,
-          tools: ephemeralConfig.tools || [],
+          // Always include KB tool schema here as fallback
+          tools: ephemeralConfig.tools && ephemeralConfig.tools.length > 0 ? ephemeralConfig.tools : [knowledgeBaseToolSchema],
           tool_choice: ephemeralConfig.tool_choice || "auto"
         }
       };
@@ -72,6 +90,7 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
         voice: sessionConfig.session.voice,
         temperature: sessionConfig.session.temperature,
         tools: sessionConfig.session.tools.length,
+        tool_names: sessionConfig.session.tools.map((tool: any) => tool.name),
         instructions: sessionConfig.session.instructions?.substring(0, 100) + '...'
       });
       
@@ -152,6 +171,11 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
           const data = JSON.parse(event.data);
           console.log("📋 Parsed event data:", data);
           console.log("🔍 Event type:", data.type);
+          
+          // Log any function/tool related events for debugging
+          if (data.type && (data.type.includes('function') || data.type.includes('tool') || data.type.includes('call'))) {
+            console.log("🔧 FUNCTION/TOOL EVENT DETECTED:", data.type, data);
+          }
           
           // Handle conversation events for transcripts based on the guide
           if (data.type === 'conversation.item.input_audio_transcription.delta') {
@@ -276,13 +300,21 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
               onTranscript(responseText, false);
               aiTranscriptRef.current = ''; // Reset accumulator
             }
-          } else if (data.type === 'response.function_call_arguments.done') {
-            // Handle function calls by sending them to our backend
-            console.log("🔧 Function call received:", data);
-            const functionName = data.name;
-            const functionArgs = data.arguments;
-            
-            if (functionName && functionArgs) {
+          } else if (data.type === 'response.output_item.done') {
+            // Handle function calls when output item is done (matching WebSocket server implementation)
+            console.log("🔧 Response output item done:", data);
+            if (data.item && data.item.type === 'function_call') {
+              console.log("🔧 Function call received:", data.item);
+              const functionName = data.item.name;
+              const functionArgs = data.item.arguments;
+              const callId = data.item.call_id;
+              
+              console.log("🔧 Executing function call:", {
+                name: functionName,
+                call_id: callId,
+                arguments: functionArgs
+              });
+              
               try {
                 // Send function call to our backend for execution
                 const response = await fetch('http://localhost:8081/api/function-call', {
@@ -292,32 +324,46 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
                   },
                   body: JSON.stringify({
                     name: functionName,
-                    arguments: functionArgs
+                    arguments: functionArgs,
+                    call_id: callId
                   })
                 });
                 
                 if (response.ok) {
                   const result = await response.text();
-                  console.log("🔧 Function call result:", result);
+                  console.log("🔧 Function call result received:", {
+                    call_id: callId,
+                    result_length: result.length,
+                    result_preview: result.substring(0, 200) + '...'
+                  });
                   
-                  // Send the result back to OpenAI
+                  // Send the result back to OpenAI with proper call_id (matching WebSocket server)
                   if (dataChannelRef.current) {
-                    dataChannelRef.current.send(JSON.stringify({
+                    const responsePayload = {
                       type: "conversation.item.create",
                       item: {
                         type: "function_call_output",
-                        role: "system",
+                        call_id: callId,
                         output: result
                       }
-                    }));
+                    };
+                    
+                    console.log("🔧 Sending function call result back to OpenAI:", {
+                      call_id: callId,
+                      payload_type: responsePayload.type,
+                      item_type: responsePayload.item.type
+                    });
+                    
+                    dataChannelRef.current.send(JSON.stringify(responsePayload));
                     
                     // Trigger a response to continue the conversation
+                    console.log("🔧 Triggering response.create to continue conversation");
                     dataChannelRef.current.send(JSON.stringify({
                       type: "response.create"
                     }));
                   }
                 } else {
-                  console.error("❌ Function call failed:", response.status);
+                  console.error("❌ Function call failed:", response.status, await response.text());
                 }
               } catch (error) {
                 console.error("❌ Error executing function call:", error);
