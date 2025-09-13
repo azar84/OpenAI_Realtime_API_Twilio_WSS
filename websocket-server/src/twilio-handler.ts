@@ -174,6 +174,7 @@ async function tryConnectModel() {
       instructions: freshInstructions.substring(0, 100) + '...',
     });
     
+    // First, configure the session
     jsonSend(session.modelConn, {
       type: "session.update",
       session: {
@@ -192,6 +193,38 @@ async function tryConnectModel() {
         ...config,
       },
     });
+    
+    // Then send initial greeting after a short delay
+    console.log('🎤 Scheduling initial greeting for Twilio caller...');
+    setTimeout(async () => {
+      if (isOpen(session.modelConn)) {
+        const agentName = agentConfig?.name || 'Assistant';
+        
+        console.log(`🎤 Sending initial greeting as ${agentName}...`);
+        
+        jsonSend(session.modelConn, {
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: `Hello ${agentName}, the call has started. Please greet the caller naturally and introduce yourself.`
+              }
+            ]
+          }
+        });
+        
+        // Trigger a response to the greeting
+        jsonSend(session.modelConn, {
+          type: "response.create",
+          response: {
+            modalities: ["text", "audio"]
+          }
+        });
+      }
+    }, 2000); // Give session time to be fully configured
   });
 
   session.modelConn.on("message", handleModelMessage);

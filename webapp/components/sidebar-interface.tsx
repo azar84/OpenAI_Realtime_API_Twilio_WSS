@@ -2,8 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Settings, MessageSquare, User, Bot, Phone, Database } from "lucide-react";
-import SessionConfigurationPanel from "./session-configuration-panel";
+import { MessageSquare, Database } from "lucide-react";
 import ConfigurationManagementPanel from "./configuration-management-panel";
 import VoiceChatWebRTC from "./voice-chat-webrtc";
 import PhoneNumberChecklist from "./phone-number-checklist";
@@ -26,7 +25,7 @@ interface SidebarInterfaceProps {
   agentName?: string;
 }
 
-type TabType = "agent" | "personas" | "conversation";
+type TabType = "personas" | "conversation";
 
 const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   selectedPhoneNumber,
@@ -51,31 +50,16 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
       icon: MessageSquare,
       description: "Chat history and voice interaction"
     },
-        {
-          id: "personas" as TabType,
-          label: "Personas",
-          icon: Database,
-          description: "Manage agent personas"
-        },
     {
-      id: "agent" as TabType,
-      label: "Agent Config",
-      icon: Settings,
-      description: "AI settings and tools"
+      id: "personas" as TabType,
+      label: "Personas",
+      icon: Database,
+      description: "Manage agent personas"
     }
   ];
 
   const renderMainContent = () => {
     switch (activeTab) {
-      case "agent":
-        return (
-          <div className="h-full flex flex-col">
-            <SessionConfigurationPanel
-              callStatus={callStatus}
-              onSave={onSaveConfiguration}
-            />
-          </div>
-        );
       case "personas":
         return (
           <div className="h-full flex flex-col">

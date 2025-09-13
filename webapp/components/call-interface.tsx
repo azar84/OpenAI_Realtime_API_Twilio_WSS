@@ -15,7 +15,6 @@ const CallInterface = () => {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [personalityConfig, setPersonalityConfig] = useState<any>(null);
   const [agentName, setAgentName] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("config");
 
   // Load personality config on mount
   useEffect(() => {

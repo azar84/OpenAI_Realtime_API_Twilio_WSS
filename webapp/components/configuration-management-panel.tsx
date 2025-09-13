@@ -568,7 +568,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select identity" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('identity').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -584,7 +584,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select task" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('task').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -600,7 +600,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select demeanor" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('demeanor').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -616,7 +616,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select tone" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('tone').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -632,7 +632,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select enthusiasm level" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('enthusiasm').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -648,7 +648,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select formality level" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('formality').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -664,7 +664,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select emotion level" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('emotion').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -680,7 +680,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select filler words style" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('filler_words').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -696,7 +696,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select pacing" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {getOptionsByCategory('pacing').map(option => (
                           <SelectItem key={option.id} value={option.id.toString()}>
                             {option.value}
@@ -712,7 +712,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select primary language" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {languages.map(language => (
                           <SelectItem key={language.id} value={language.id.toString()}>
                             {language.name} ({language.native_name})
@@ -739,7 +739,7 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Add secondary language" />
                       </SelectTrigger>
-                      <SelectContent className="max-w-[300px]">
+                      <SelectContent className="max-w-[500px]">
                         {languages
                           .filter(lang => !formData.secondary_language_ids.includes(lang.id))
                           .map(language => (
