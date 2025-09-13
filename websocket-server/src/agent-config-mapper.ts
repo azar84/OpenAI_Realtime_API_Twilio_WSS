@@ -1,6 +1,7 @@
 import { RealtimeAgent, RealtimeSession, tool } from "@openai/agents/realtime";
 import { TwilioRealtimeTransportLayer } from "@openai/agents-extensions";
 import { z } from "zod";
+import { getEnabledToolsForTwilio, getEnabledToolsForWebRTC } from "./agent-tools";
 
 // 1) Types that mirror your DB (agent_configs table)
 export type DBAgentConfig = {
@@ -83,46 +84,10 @@ export type PersonalityOption = {
   updated_at?: string;
 };
 
-// Tool registry (name -> tool). Fill with your real tools
-const TOOL_REGISTRY: Record<string, ReturnType<typeof tool>> = {
-  weather: tool({
-    name: "weather",
-    description: "Get current weather for given coordinates",
-    parameters: z.object({ 
-      latitude: z.number().describe("Latitude coordinate"),
-      longitude: z.number().describe("Longitude coordinate")
-    }),
-    async execute(input: { latitude: number; longitude: number }) {
-      // This would call your actual weather API
-      return `Weather at ${input.latitude}, ${input.longitude}: sunny, 72°F`;
-    },
-  }),
-  customer_lookup: tool({
-    name: "customer_lookup",
-    description: "Find a customer and recent info by phone number via n8n workflow",
-    parameters: z.object({ 
-      phone: z.string().describe("E.164 phone number")
-    }),
-    async execute(input: { phone: string }) {
-      // This would call your actual customer lookup API
-      return { found: true, id: "cust_123", phone: input.phone, lastOrder: "2024-01-15" };
-    },
-  }),
-  knowledge_base: tool({
-    name: "knowledge_base",
-    description: "Answer questions about the company, contact information, products, services, etc.",
-    parameters: z.object({ 
-      query: z.string().describe("Search query to find information in the knowledge base")
-    }),
-    async execute(input: { query: string }) {
-      // This would call your actual knowledge base API
-      return `Knowledge base response for: ${input.query}`;
-    },
-  }),
-};
+// Tool registry moved to agent-tools.ts
 
 // 2) Normalize and validate a DB row
-export function normalizeConfig(db: DBAgentConfig) {
+export async function normalizeConfig(db: DBAgentConfig) {
   // Reasonable fallbacks
   const model = db.model ?? "gpt-realtime";
   const voice = db.voice ?? "alloy";
@@ -179,11 +144,11 @@ export function normalizeConfig(db: DBAgentConfig) {
       };
   }
 
-  // Tools
+  // Tools - get tools based on enabled_tools array from database
   const toolsEnabled = db.tools_enabled ?? true;
-  const enabledTools = (db.enabled_tools ?? [])
-    .map((name) => TOOL_REGISTRY[name])
-    .filter(Boolean);
+  const enabledToolNames = db.enabled_tools ?? [];
+  const enabledToolsForTwilio = toolsEnabled ? getEnabledToolsForTwilio(enabledToolNames) : [];
+  const enabledToolsForWebRTC = toolsEnabled ? getEnabledToolsForWebRTC(enabledToolNames) : [];
 
   return {
     model,
@@ -196,19 +161,20 @@ export function normalizeConfig(db: DBAgentConfig) {
     turn_detection,
     modalities: db.modalities ?? ["text", "audio"],
     toolsEnabled,
-    enabledTools,
+    enabledToolsForTwilio,
+    enabledToolsForWebRTC,
   };
 }
 
 // 3) Build Agent + Session from DB row (for voice chat - uses PCM16)
-export function buildAgentFromDB(dbRow: DBAgentConfig) {
-  const cfg = normalizeConfig(dbRow);
+export async function buildAgentFromDB(dbRow: DBAgentConfig) {
+  const cfg = await normalizeConfig(dbRow);
 
   const agent = new RealtimeAgent({
     name: dbRow.name ?? "Default Assistant",
     instructions: cfg.instructions,
     voice: cfg.voice,                // choose before first audio output
-    tools: cfg.toolsEnabled ? cfg.enabledTools : [],
+    tools: [], // WebRTC tools need to be handled differently - using direct OpenAI API
   });
 
   const session = new RealtimeSession(agent, {
@@ -230,14 +196,14 @@ export function buildAgentFromDB(dbRow: DBAgentConfig) {
 }
 
 // 4) Build Twilio-specific session from DB row (uses g711_ulaw)
-export function buildTwilioSessionFromDB(dbRow: DBAgentConfig, twilioWebSocket: any) {
-  const cfg = normalizeConfig(dbRow);
+export async function buildTwilioSessionFromDB(dbRow: DBAgentConfig, twilioWebSocket: any) {
+  const cfg = await normalizeConfig(dbRow);
 
   const agent = new RealtimeAgent({
     name: dbRow.name ?? "Twilio Assistant",
     instructions: cfg.instructions,
     voice: cfg.voice,
-    tools: cfg.toolsEnabled ? cfg.enabledTools : [],
+    tools: [], // Tools are handled in the session configuration, not agent
   });
 
   const twilioTransport = new TwilioRealtimeTransportLayer({
@@ -267,7 +233,7 @@ export async function applyLiveUpdateFromDB(
   session: RealtimeSession,
   dbRow: DBAgentConfig
 ) {
-  const cfg = normalizeConfig(dbRow);
+  const cfg = await normalizeConfig(dbRow);
 
   // Build a minimal patch — avoid touching voice if the agent already spoke.
   // If you must change voice mid-call, end the session and start a new one.
@@ -287,7 +253,7 @@ export async function applyLiveUpdateFromDB(
     name: dbRow.name ?? "Updated Assistant",
     instructions: cfg.instructions,
     voice: cfg.voice,
-    tools: cfg.toolsEnabled ? cfg.enabledTools : [],
+    tools: [], // Tools are handled in the session configuration, not agent
   });
 
   await session.updateAgent(newAgent);
@@ -304,7 +270,7 @@ export async function switchVoiceWithRestart(
 
   // 2) write to DB (optional) then re-read
   dbRow.voice = newVoice;
-  const { session: newSession } = buildAgentFromDB(dbRow);
+  const { session: newSession } = await buildAgentFromDB(dbRow);
 
   // 3) reconnect
   await newSession.connect({ apiKey: process.env.OPENAI_API_KEY! });
@@ -313,15 +279,17 @@ export async function switchVoiceWithRestart(
 
 // 7) Register a new tool dynamically
 export function registerTool(name: string, toolDefinition: ReturnType<typeof tool>) {
-  TOOL_REGISTRY[name] = toolDefinition;
+  console.warn('⚠️ registerTool() is deprecated. Add tools directly to TOOL_REGISTRY in agent-tools.ts');
 }
 
 // 8) Get all available tools
 export function getAvailableTools() {
-  return Object.keys(TOOL_REGISTRY);
+  console.warn('⚠️ getAvailableTools() is deprecated. Use getAvailableToolNames() from agent-tools.ts');
+  return [];
 }
 
 // 9) Get tool by name
 export function getTool(name: string) {
-  return TOOL_REGISTRY[name];
+  console.warn('⚠️ getTool() is deprecated. Use TOOL_REGISTRY from agent-tools.ts');
+  return undefined;
 }

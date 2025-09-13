@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Database } from "lucide-react";
+import { MessageSquare, Database, Settings } from "lucide-react";
 import ConfigurationManagementPanel from "./configuration-management-panel";
+import ToolsConfigurationPanel from "./tools-configuration-panel";
 import VoiceChatWebRTC from "./voice-chat-webrtc";
 import PhoneNumberChecklist from "./phone-number-checklist";
 import Transcript from "./transcript";
@@ -25,7 +26,7 @@ interface SidebarInterfaceProps {
   agentName?: string;
 }
 
-type TabType = "personas" | "conversation";
+type TabType = "personas" | "conversation" | "tools";
 
 const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
   selectedPhoneNumber,
@@ -55,6 +56,12 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
       label: "Personas",
       icon: Database,
       description: "Manage agent personas"
+    },
+    {
+      id: "tools" as TabType,
+      label: "Tools",
+      icon: Settings,
+      description: "Configure agent tools"
     }
   ];
 
@@ -64,6 +71,13 @@ const SidebarInterface: React.FC<SidebarInterfaceProps> = ({
         return (
           <div className="h-full flex flex-col">
             <ConfigurationManagementPanel />
+          </div>
+        );
+      
+      case "tools":
+        return (
+          <div className="h-full flex flex-col">
+            <ToolsConfigurationPanel />
           </div>
         );
       

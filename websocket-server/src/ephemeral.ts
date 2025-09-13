@@ -24,7 +24,7 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
     console.log('✅ Agent configuration found:', agentConfig.name);
     
     // Normalize the configuration to get proper settings
-    const normalizedConfig = normalizeConfig(agentConfig);
+    const normalizedConfig = await normalizeConfig(agentConfig);
     
     // Get fresh template-based instructions instead of old database field
     console.log('📝 Generating fresh instructions from template...');
@@ -41,8 +41,13 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
     console.log('  - VAD:', normalizedConfig.turn_detection);
     console.log('  - Modalities:', normalizedConfig.modalities);
     console.log('  - Tools Enabled:', normalizedConfig.toolsEnabled);
-    console.log('  - Available Tools:', normalizedConfig.enabledTools.length);
+    console.log('  - Available Tools:', normalizedConfig.enabledToolsForWebRTC.length);
     console.log('  - Audio Format: PCM16 (WebRTC optimized)');
+    
+    // Debug: Log the tools being sent
+    if (normalizedConfig.enabledToolsForWebRTC.length > 0) {
+      console.log('🔧 Tools being sent:', JSON.stringify(normalizedConfig.enabledToolsForWebRTC, null, 2));
+    }
     
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
@@ -63,8 +68,7 @@ export const getEphemeralKey = async (_req: Request, res: Response) => {
         },
         input_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
         output_audio_format: "pcm16", // WebRTC uses PCM16 for optimal quality
-        // Tools are not supported in ephemeral key creation for WebRTC
-        // They will be handled by the WebRTC client directly
+        tools: normalizedConfig.toolsEnabled ? normalizedConfig.enabledToolsForWebRTC : []
       }),
     });
 

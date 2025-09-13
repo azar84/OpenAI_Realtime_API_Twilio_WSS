@@ -88,7 +88,7 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
 
       // 5) Create data channel for events
       dataChannelRef.current = peerConnectionRef.current.createDataChannel("oai-events");
-      dataChannelRef.current.onmessage = (event) => {
+      dataChannelRef.current.onmessage = (async (event) => {
         eventCountRef.current++;
         console.log(`📨 Event #${eventCountRef.current} from OpenAI:`, event.data);
         
@@ -220,12 +220,69 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
               onTranscript(responseText, false);
               aiTranscriptRef.current = ''; // Reset accumulator
             }
+          } else if (data.type === 'response.function_call_arguments.done') {
+            // Handle function calls by sending them to our backend
+            console.log("🔧 Function call received:", data);
+            const functionName = data.name;
+            const functionArgs = data.arguments;
+            
+            if (functionName && functionArgs) {
+              try {
+                // Send function call to our backend for execution
+                const response = await fetch('http://localhost:8081/api/function-call', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    name: functionName,
+                    arguments: functionArgs
+                  })
+                });
+                
+                if (response.ok) {
+                  const result = await response.text();
+                  console.log("🔧 Function call result:", result);
+                  
+                  // Send the result back to OpenAI
+                  if (dataChannelRef.current) {
+                    dataChannelRef.current.send(JSON.stringify({
+                      type: "conversation.item.create",
+                      item: {
+                        type: "function_call_output",
+                        role: "system",
+                        output: result
+                      }
+                    }));
+                    
+                    // Trigger a response to continue the conversation
+                    dataChannelRef.current.send(JSON.stringify({
+                      type: "response.create"
+                    }));
+                  }
+                } else {
+                  console.error("❌ Function call failed:", response.status);
+                }
+              } catch (error) {
+                console.error("❌ Error executing function call:", error);
+              }
+            }
           } else if (data.type === 'input_audio_buffer.committed') {
             // User turn boundary - useful for marking when user stops speaking
             console.log("🎯 User turn committed");
           } else {
             // Log any other event types we might be missing
             console.log("🔍 Unhandled event type:", data.type, "Data:", data);
+            
+            // Check for function call events with different names
+            if (data.type && (data.type.includes('function') || data.type.includes('tool'))) {
+              console.log("🔧 Potential function call event:", data.type, data);
+            }
+            
+            // Check for any event that might contain function call data
+            if (data.function_call || data.tool_call || data.tool_calls) {
+              console.log("🔧 Found function/tool call in unhandled event:", data.type, data);
+            }
             
             // Check for AI response events that might have different names
             if (data.type && data.type.includes('response') && onTranscript) {
@@ -241,7 +298,7 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
         } catch (e) {
           console.log("📨 Raw event data:", event.data);
         }
-      };
+      });
 
       // 6) Get microphone access
       console.log("🎤 Requesting microphone access...");

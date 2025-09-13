@@ -875,3 +875,98 @@ export async function deletePersonalityOption(id: number): Promise<void> {
     client.release();
   }
 }
+
+// Tool Configuration Functions
+export async function getToolConfigurations(toolName?: string) {
+  const client = await pool.connect();
+  try {
+    let query = `
+      SELECT tool_name, config_key, config_value, description, is_secret, enabled, created_at, updated_at
+      FROM tool_configurations
+    `;
+    const params: any[] = [];
+    
+    if (toolName) {
+      query += ' WHERE tool_name = $1';
+      params.push(toolName);
+    }
+    
+    query += ' ORDER BY tool_name, config_key';
+    
+    const result = await client.query(query, params);
+    return result.rows;
+  } catch (error) {
+    console.error('Error fetching tool configurations:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateToolConfiguration(toolName: string, configKey: string, configValue: string) {
+  const client = await pool.connect();
+  try {
+    const query = `
+      INSERT INTO tool_configurations (tool_name, config_key, config_value, updated_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      ON CONFLICT (tool_name, config_key)
+      DO UPDATE SET 
+        config_value = EXCLUDED.config_value,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+    
+    const result = await client.query(query, [toolName, configKey, configValue]);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error updating tool configuration:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getToolConfiguration(toolName: string, configKey: string) {
+  const client = await pool.connect();
+  try {
+    const query = `
+      SELECT tool_name, config_key, config_value, description, is_secret, enabled, created_at, updated_at
+      FROM tool_configurations
+      WHERE tool_name = $1 AND config_key = $2
+    `;
+    
+    const result = await client.query(query, [toolName, configKey]);
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error fetching tool configuration:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getToolConfigurationsAsObject(toolName: string) {
+  const client = await pool.connect();
+  try {
+    const query = `
+      SELECT config_key, config_value, description, is_secret, enabled
+      FROM tool_configurations
+      WHERE tool_name = $1 AND enabled = true
+      ORDER BY config_key
+    `;
+    
+    const result = await client.query(query, [toolName]);
+    const config: any = {};
+    
+    result.rows.forEach(row => {
+      config[row.config_key] = row.config_value;
+    });
+    
+    return config;
+  } catch (error) {
+    console.error('Error fetching tool configurations as object:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}

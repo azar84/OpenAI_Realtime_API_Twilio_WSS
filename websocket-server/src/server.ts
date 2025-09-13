@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, RequestHandler } from "express";
 import { WebSocketServer, WebSocket } from "ws";
 import { IncomingMessage } from "http";
 import dotenv from "dotenv";
@@ -10,7 +10,7 @@ import {
   handleCallConnection,
   handleFrontendConnection,
 } from "./twilio-handler";
-import { agentTools } from "./agent-tools";
+// agentTools import removed - using dynamic tool loading instead
 import { 
   testConnection, 
   getAllAgentConfigs, 
@@ -23,7 +23,10 @@ import {
   createPersonalityOption,
   updatePersonalityOption,
   deletePersonalityOption,
-  getLanguages
+  getLanguages,
+  getToolConfigurations,
+  updateToolConfiguration,
+  getToolConfigurationsAsObject
 } from "./db";
 import { getEphemeralKey } from "./ephemeral";
 import agentInstructions from "./agent-instructions";
@@ -196,6 +199,46 @@ app.get('/api/languages', async (req, res) => {
   }
 });
 
+// Tool Configuration endpoints
+app.put('/api/tool-configurations/:toolName/:configKey', (async (req, res) => {
+  try {
+    const { toolName, configKey } = req.params;
+    const { configValue } = req.body;
+    
+    if (!configValue) {
+      return res.status(400).json({ error: 'configValue is required' });
+    }
+    
+    const result = await updateToolConfiguration(toolName, configKey, configValue);
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating tool configuration:', error);
+    res.status(500).json({ error: 'Failed to update tool configuration' });
+  }
+}) as RequestHandler);
+
+app.get('/api/tool-configurations', async (req, res) => {
+  try {
+    const { toolName } = req.query;
+    const configurations = await getToolConfigurations(toolName as string);
+    res.json(configurations);
+  } catch (error) {
+    console.error('Error fetching tool configurations:', error);
+    res.status(500).json({ error: 'Failed to fetch tool configurations' });
+  }
+});
+
+app.get('/api/tool-configurations/:toolName', async (req, res) => {
+  try {
+    const { toolName } = req.params;
+    const configurations = await getToolConfigurationsAsObject(toolName);
+    res.json(configurations);
+  } catch (error) {
+    console.error('Error fetching tool configurations:', error);
+    res.status(500).json({ error: 'Failed to fetch tool configurations' });
+  }
+});
+
 const twimlPath = join(__dirname, "twiml.xml");
 const twimlTemplate = readFileSync(twimlPath, "utf-8");
 
@@ -213,13 +256,88 @@ app.all("/twiml", (req, res) => {
 });
 
 // New endpoint to list available tools (schemas)
-app.get("/tools", (req, res) => {
-  res.json(agentTools.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    parameters: tool.parameters,
-  })));
+app.get("/tools", async (req, res) => {
+  try {
+    const { getAvailableToolNames, TOOL_REGISTRY } = await import('./agent-tools');
+    const toolNames = getAvailableToolNames();
+    
+    // Return simple tool info without loading the actual tools
+    const tools = toolNames.map(name => {
+      const tool = TOOL_REGISTRY[name];
+      return {
+        name: tool.schema.name,
+        description: tool.schema.description,
+        parameters: tool.schema.parameters
+      };
+    });
+    
+    res.json(tools);
+  } catch (error) {
+    console.error('Error fetching available tools:', error);
+    res.status(500).json({ error: 'Failed to fetch available tools' });
+  }
 });
+
+// API endpoint for tools (same as /tools but under /api prefix)
+app.get("/api/tools", async (req, res) => {
+  try {
+    const { getAvailableToolNames, TOOL_REGISTRY } = await import('./agent-tools');
+    const toolNames = getAvailableToolNames();
+    
+    // Return simple tool info without loading the actual tools
+    const tools = toolNames.map(name => {
+      const tool = TOOL_REGISTRY[name];
+      return {
+        name: tool.schema.name,
+        description: tool.schema.description,
+        parameters: tool.schema.parameters
+      };
+    });
+    
+    res.json(tools);
+  } catch (error) {
+    console.error('Error fetching available tools:', error);
+    res.status(500).json({ error: 'Failed to fetch available tools' });
+  }
+});
+
+// API endpoint for function call execution (for WebRTC)
+app.post("/api/function-call", (async (req, res) => {
+  try {
+    const { name, arguments: args } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Function name is required' });
+    }
+    
+    console.log(`🔧 WebRTC Function call: ${name}`, args);
+    
+    // Get the tool from our registry
+    const { TOOL_REGISTRY } = await import('./agent-tools');
+    const tool = TOOL_REGISTRY[name];
+    
+    if (!tool) {
+      return res.status(404).json({ error: `Function '${name}' not found` });
+    }
+    
+    // Parse arguments if they're a string
+    let parsedArgs;
+    try {
+      parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid function arguments' });
+    }
+    
+    // Execute the function
+    const result = await tool.handler(parsedArgs);
+    
+    console.log(`✅ WebRTC Function result:`, result);
+    res.send(result);
+  } catch (error) {
+    console.error('Error executing function call:', error);
+    res.status(500).json({ error: 'Function execution failed' });
+  }
+}) as RequestHandler);
 
 // Note: reload configuration endpoint is disabled in baseline restore
 

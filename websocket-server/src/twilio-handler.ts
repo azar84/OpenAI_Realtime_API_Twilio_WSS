@@ -60,23 +60,27 @@ export function handleFrontendConnection(ws: WebSocket) {
 
 async function handleFunctionCall(item: { name: string; arguments: string }) {
   console.log("Handling function call:", item);
-  const fnDef = functions.find((f: any) => f.schema.name === item.name);
-  if (!fnDef) {
-    throw new Error(`No handler found for function: ${item.name}`);
-  }
-
-  let args: unknown;
+  
   try {
-    args = JSON.parse(item.arguments);
-  } catch {
-    return JSON.stringify({
-      error: "Invalid JSON arguments for function call.",
-    });
-  }
+    // Get the tool from our registry
+    const { TOOL_REGISTRY } = await import('./agent-tools');
+    const tool = TOOL_REGISTRY[item.name];
+    
+    if (!tool) {
+      throw new Error(`No handler found for function: ${item.name}`);
+    }
 
-  try {
-    console.log("Calling function:", fnDef.schema.name, args);
-    const result = await fnDef.handler(args as any);
+    let args: unknown;
+    try {
+      args = JSON.parse(item.arguments);
+    } catch {
+      return JSON.stringify({
+        error: "Invalid JSON arguments for function call.",
+      });
+    }
+
+    console.log("Calling function:", tool.schema.name, args);
+    const result = await tool.handler(args as any);
     return result;
   } catch (err: any) {
     console.error("Error running function:", err);
@@ -159,7 +163,7 @@ async function tryConnectModel() {
     }
     
     // Normalize config and get fresh template-based instructions (same as WebRTC)
-    const normalizedConfig = normalizeConfig(agentConfig);
+    const normalizedConfig = await normalizeConfig(agentConfig);
     console.log('📝 Generating fresh instructions from template for Twilio...');
     const freshInstructions = await agentInstructions();
     
@@ -190,6 +194,7 @@ async function tryConnectModel() {
         },
         input_audio_format: "g711_ulaw", // Twilio uses g711_ulaw
         output_audio_format: "g711_ulaw", // Twilio uses g711_ulaw
+        tools: normalizedConfig.toolsEnabled ? normalizedConfig.enabledToolsForTwilio : [],
         ...config,
       },
     });

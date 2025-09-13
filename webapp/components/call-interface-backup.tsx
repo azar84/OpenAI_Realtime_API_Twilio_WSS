@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import TopBar from "@/components/top-bar";
 import ChecklistAndConfig from "@/components/checklist-and-config";
 import SidebarInterface from "@/components/sidebar-interface";
-import { PersonalityConfigPanel } from "@/components/personality-config-panel";
 import { Item } from "@/components/types";
 import handleRealtimeEvent from "@/lib/handle-realtime-event";
 
