@@ -23,7 +23,7 @@ const knowledgeBaseTool: FunctionHandler = {
       required: ['query']
     }
   },
-  handler: async ({ query }: { query: string }) => {
+  handler: async ({ query }: { query: string }, sessionContext?: { streamSid?: string }) => {
     console.log(`🔍 Knowledge Base Tool Called with query: "${query}"`);
     
     try {
@@ -71,7 +71,7 @@ const weatherTool: FunctionHandler = {
       required: ['location']
     }
   },
-  handler: async ({ location }: { location: string }) => {
+  handler: async ({ location }: { location: string }, sessionContext?: { streamSid?: string }) => {
     console.log(`🌤️ Weather Tool Called for: ${location}`);
     return JSON.stringify({ 
       location, 
@@ -99,7 +99,7 @@ const customerLookupTool: FunctionHandler = {
       required: ['identifier']
     }
   },
-  handler: async ({ identifier }: { identifier: string }) => {
+  handler: async ({ identifier }: { identifier: string }, sessionContext?: { streamSid?: string }) => {
     console.log(`👤 Customer Lookup Tool Called for: ${identifier}`);
     return JSON.stringify({ 
       identifier, 
@@ -110,6 +110,87 @@ const customerLookupTool: FunctionHandler = {
   }
 };
 
+// Meeting Scheduling Tool (FunctionHandler format)
+const meetingSchedulingTool: FunctionHandler = {
+  schema: {
+    name: 'schedule_meeting',
+    type: 'function',
+    description: `Use this tool to schedule a meeting with a customer. The tool is managed by another 
+    AI agent who will ask you some questions to finalzie the booking. Follow those steps:
+    1. First ask the user for the desired time and date and time zone or city , then consult the tool about availability
+    2. After finding availability inform the user and get other details like name , email , any notes for the meeting 
+    3. Call the tool again and provide all information needed to book the meeting  
+    4. You need to understand the response provided by the tool and provide any missing infomation 
+    to the tool , or confirm the correctiness of information.
+    5. You should receive confirmation that meeting was booked, don't make your assumption about conformaiton 
+    just wait for the tool agent to confirm to you. 
+` ,
+    parameters: {
+      type: 'object',
+      required: ['query'],
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Natural language message/request to send to the meeting scheduling agent. This should contain all available information about the meeting request, including desired time, date, time zone, customer details, and any other relevant information.'
+        }
+      }
+    }
+  },
+  handler: async ({ query }: { 
+    query: string;
+  }, sessionContext?: { streamSid?: string }) => {
+    console.log(`📅 Meeting Scheduling Tool Called with query: "${query}"`);
+    
+    try {
+      const webhookUrl = 'https://n8n.hiqsense.com/webhook/868f0106-771a-48e1-8f89-387558424747';
+      
+      const webhookPayload = {
+        sessionId: sessionContext?.streamSid || 'unknown',
+        headers: {},
+        body: {
+          action: 'scheduleMeeting',
+          chatInput: query
+        },
+        query: {}
+      };
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Webhook request failed with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      return JSON.stringify({ 
+        success: true,
+        webhookPayload,
+        webhookResponse: result,
+        message: `Meeting scheduling request sent: "${query}"`
+      });
+    } catch (error) {
+      console.error('❌ Meeting Scheduling Tool Error:', error);
+      return JSON.stringify({ 
+        success: false,
+        error: `Meeting scheduling failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        webhookPayload: { 
+          sessionId: sessionContext?.streamSid || 'unknown', 
+          headers: {}, 
+          body: { action: 'scheduleMeeting', chatInput: query }, 
+          query: {} 
+        },
+        message: "Failed to schedule meeting"
+      });
+    }
+  }
+};
+
 // ============================================================================
 // TOOL REGISTRY - Map tool names to their implementations
 // ============================================================================
@@ -117,6 +198,7 @@ export const TOOL_REGISTRY: Record<string, FunctionHandler> = {
   knowledge_base: knowledgeBaseTool,
   weather: weatherTool,
   customer_lookup: customerLookupTool,
+  schedule_meeting: meetingSchedulingTool,
 };
 
 // ============================================================================

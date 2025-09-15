@@ -34,7 +34,7 @@ const knowledgeBaseTool = {
             required: ['query']
         }
     },
-    handler: (_a) => __awaiter(void 0, [_a], void 0, function* ({ query }) {
+    handler: (_a, sessionContext_1) => __awaiter(void 0, [_a, sessionContext_1], void 0, function* ({ query }, sessionContext) {
         console.log(`🔍 Knowledge Base Tool Called with query: "${query}"`);
         try {
             // Initialize OpenAI client here to ensure environment variables are loaded
@@ -79,7 +79,7 @@ const weatherTool = {
             required: ['location']
         }
     },
-    handler: (_a) => __awaiter(void 0, [_a], void 0, function* ({ location }) {
+    handler: (_a, sessionContext_1) => __awaiter(void 0, [_a, sessionContext_1], void 0, function* ({ location }, sessionContext) {
         console.log(`🌤️ Weather Tool Called for: ${location}`);
         return JSON.stringify({
             location,
@@ -106,7 +106,7 @@ const customerLookupTool = {
             required: ['identifier']
         }
     },
-    handler: (_a) => __awaiter(void 0, [_a], void 0, function* ({ identifier }) {
+    handler: (_a, sessionContext_1) => __awaiter(void 0, [_a, sessionContext_1], void 0, function* ({ identifier }, sessionContext) {
         console.log(`👤 Customer Lookup Tool Called for: ${identifier}`);
         return JSON.stringify({
             identifier,
@@ -116,6 +116,78 @@ const customerLookupTool = {
         });
     })
 };
+// Meeting Scheduling Tool (FunctionHandler format)
+const meetingSchedulingTool = {
+    schema: {
+        name: 'schedule_meeting',
+        type: 'function',
+        description: `Use this tool to schedule a meeting with a customer. The tool is managed by another 
+    AI agent who will ask you some questions to finalzie the booking. 
+    Do not confirm the booking until you receive confirmation and meeting detailsfrom the other agent.
+     Start by the desired time and date and time zone or city , then consult the tool about availability,
+     the time zone shall be in widnows format.
+     After finding availability 
+    inform the user and get other details like name , email , any notes for the meeting , 
+    phone numebr , company name . Once you have the meeting details on the conformation then inform the
+    customer that meeting was booked and email will be sent with the details.`,
+        parameters: {
+            type: 'object',
+            required: ['query'],
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'Natural language message/request to send to the meeting scheduling agent. This should contain all available information about the meeting request, including desired time, date, time zone, customer details, and any other relevant information.'
+                }
+            }
+        }
+    },
+    handler: (_a, sessionContext_1) => __awaiter(void 0, [_a, sessionContext_1], void 0, function* ({ query }, sessionContext) {
+        console.log(`📅 Meeting Scheduling Tool Called with query: "${query}"`);
+        try {
+            const webhookUrl = 'https://n8n.hiqsense.com/webhook/868f0106-771a-48e1-8f89-387558424747';
+            const webhookPayload = {
+                sessionId: (sessionContext === null || sessionContext === void 0 ? void 0 : sessionContext.streamSid) || 'unknown',
+                headers: {},
+                body: {
+                    action: 'scheduleMeeting',
+                    chatInput: query
+                },
+                query: {}
+            };
+            const response = yield fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(webhookPayload)
+            });
+            if (!response.ok) {
+                throw new Error(`Webhook request failed with status: ${response.status}`);
+            }
+            const result = yield response.json();
+            return JSON.stringify({
+                success: true,
+                webhookPayload,
+                webhookResponse: result,
+                message: `Meeting scheduling request sent: "${query}"`
+            });
+        }
+        catch (error) {
+            console.error('❌ Meeting Scheduling Tool Error:', error);
+            return JSON.stringify({
+                success: false,
+                error: `Meeting scheduling failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                webhookPayload: {
+                    sessionId: (sessionContext === null || sessionContext === void 0 ? void 0 : sessionContext.streamSid) || 'unknown',
+                    headers: {},
+                    body: { action: 'scheduleMeeting', chatInput: query },
+                    query: {}
+                },
+                message: "Failed to schedule meeting"
+            });
+        }
+    })
+};
 // ============================================================================
 // TOOL REGISTRY - Map tool names to their implementations
 // ============================================================================
@@ -123,6 +195,7 @@ exports.TOOL_REGISTRY = {
     knowledge_base: knowledgeBaseTool,
     weather: weatherTool,
     customer_lookup: customerLookupTool,
+    schedule_meeting: meetingSchedulingTool,
 };
 // ============================================================================
 // UNIFIED TOOL MANAGEMENT

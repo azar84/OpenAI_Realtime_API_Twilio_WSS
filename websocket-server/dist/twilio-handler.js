@@ -99,7 +99,8 @@ function handleFunctionCall(item) {
                 });
             }
             console.log("Calling function:", tool.schema.name, args);
-            const result = yield tool.handler(args);
+            const sessionContext = { streamSid: session.streamSid };
+            const result = yield tool.handler(args, sessionContext);
             return result;
         }
         catch (err) {

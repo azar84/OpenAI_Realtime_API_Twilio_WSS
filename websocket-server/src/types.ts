@@ -27,5 +27,5 @@ export interface FunctionSchema {
 
 export interface FunctionHandler {
   schema: FunctionSchema;
-  handler: (args: any) => Promise<string>;
+  handler: (args: any, sessionContext?: { streamSid?: string }) => Promise<string>;
 }

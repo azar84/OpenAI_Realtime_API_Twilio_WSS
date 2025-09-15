@@ -80,7 +80,8 @@ async function handleFunctionCall(item: { name: string; arguments: string }) {
     }
 
     console.log("Calling function:", tool.schema.name, args);
-    const result = await tool.handler(args as any);
+    const sessionContext = { streamSid: session.streamSid };
+    const result = await tool.handler(args as any, sessionContext);
     return result;
   } catch (err: any) {
     console.error("Error running function:", err);
