@@ -21,7 +21,7 @@ COPY webapp/package*.json ./webapp/
 
 # Install dependencies for both services
 RUN npm ci --only=production
-RUN cd websocket-server && npm ci --only=production
+RUN cd websocket-server && npm ci
 RUN cd webapp && npm ci --only=production
 
 # Copy source code
