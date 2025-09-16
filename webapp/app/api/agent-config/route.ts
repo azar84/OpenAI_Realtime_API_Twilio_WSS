@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AgentConfigDB, testConnection } from '@/lib/db';
+import { AgentConfigDB, testConnection } from '../../../lib/db';
 
 // GET /api/agent-config - Get all configurations or active configuration
 export async function GET(request: NextRequest) {
