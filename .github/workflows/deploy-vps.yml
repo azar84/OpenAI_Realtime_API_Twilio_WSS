@@ -227,12 +227,12 @@ jobs:
         
         # Upload files to VPS
         echo "📤 Uploading files to VPS..."
-        sshpass -p "htc792980" scp -o StrictHostKeyChecking=no -r deployment-production/* debian@51.222.142.170:/home/debian/openai-realtime-production/
+        sshpass -p "${{ secrets.VPS_PASSWORD }}" scp -o StrictHostKeyChecking=no -r deployment-production/* ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/home/${{ secrets.VPS_USERNAME }}/openai-realtime-production/
         
         # Run deployment commands on VPS
         echo "🔧 Running deployment on VPS..."
-        sshpass -p "htc792980" ssh -o StrictHostKeyChecking=no debian@51.222.142.170 << 'EOF'
-        cd /home/debian/openai-realtime-production
+        sshpass -p "${{ secrets.VPS_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }} << 'EOF'
+        cd /home/${{ secrets.VPS_USERNAME }}/openai-realtime-production
         
         echo "🚀 Starting VPS deployment process..."
         chmod +x deploy-on-vps.sh
@@ -249,7 +249,7 @@ jobs:
       run: |
         if [ ${{ job.status }} == 'success' ]; then
           echo "✅ Deployment successful!"
-          echo "🌐 Application available at: http://51.222.142.170"
+          echo "🌐 Application available at: http://${{ secrets.VPS_HOST }}"
         else
           echo "❌ Deployment failed!"
         fi
