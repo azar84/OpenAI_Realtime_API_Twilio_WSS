@@ -45,8 +45,9 @@ export default function ChecklistAndConfig({
   const [ngrokLoading, setNgrokLoading] = useState(false);
 
   // Use environment variables directly
-  const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || '';
-  const productionTwimlUrl = productionWsUrl ? `${productionWsUrl}/twiml` : '';
+  const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || '';
+  // Use WEBSOCKET_SERVER_URL for webhook (should be https://)
+  const productionTwimlUrl = process.env.WEBSOCKET_SERVER_URL ? `${process.env.WEBSOCKET_SERVER_URL}/twiml` : '';
   const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
   
   const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
