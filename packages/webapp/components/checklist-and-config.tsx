@@ -48,7 +48,7 @@ export default function ChecklistAndConfig({
   const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || '';
   // For webhook URL, we need to get it from server-side environment variables
   const [productionTwimlUrl, setProductionTwimlUrl] = useState('');
-  const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
+  const isProductionMode = process.env.NODE_ENV === 'production';
   
   const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
   const isWebhookMismatch =
