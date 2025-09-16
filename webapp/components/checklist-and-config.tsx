@@ -94,6 +94,10 @@ export default function ChecklistAndConfig({
             setLocalServerUp(false);
             setPublicUrl("");
           }
+        } else {
+          // In production mode, clear these values
+          setLocalServerUp(false);
+          setPublicUrl("");
         }
       } catch (err) {
         console.error(err);
@@ -268,7 +272,7 @@ export default function ChecklistAndConfig({
         <div className="flex items-center gap-2 w-full">
           <div className="flex-1">
             <Input 
-              value={currentVoiceUrl} 
+              value={currentVoiceUrl || "No webhook URL set"} 
               disabled 
               className="w-full" 
               placeholder="Current webhook URL"
