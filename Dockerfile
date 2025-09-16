@@ -50,6 +50,7 @@ RUN apk add --no-cache \
     curl \
     supervisor \
     nginx \
+    su-exec \
     && rm -rf /var/cache/apk/*
 
 # Set working directory
