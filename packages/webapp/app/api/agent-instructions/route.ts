@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AgentConfigDB } from '@/lib/db';
+import { AgentConfigDB } from '../../../lib/db';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Call the websocket server to get rendered instructions
-    const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+    const serverUrl = process.env.WEBSOCKET_SERVER_URL || 'http://localhost:8081';
     
     const response = await fetch(`${serverUrl}/api/agent-instructions`, {
       method: 'GET',

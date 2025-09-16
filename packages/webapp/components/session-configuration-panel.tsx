@@ -58,7 +58,8 @@ const SessionConfigurationPanel: React.FC<SessionConfigurationPanelProps> = ({
   const baseInstructionsRef = useRef<string>("");
 
   // Custom hook to fetch backend tools every 3 seconds
-  const backendTools = useBackendTools("http://localhost:8081/tools", 3000);
+  const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+  const backendTools = useBackendTools(`${serverUrl}/tools`, 3000);
 
   // Load saved configuration on component mount
   useEffect(() => {

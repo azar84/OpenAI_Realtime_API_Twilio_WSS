@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import TopBar from "@/components/top-bar";
-import ChecklistAndConfig from "@/components/checklist-and-config";
-import SidebarInterface from "@/components/sidebar-interface";
-import { Item } from "@/components/types";
-import handleRealtimeEvent from "@/lib/handle-realtime-event";
+import TopBar from "./top-bar";
+import ChecklistAndConfig from "./checklist-and-config";
+import SidebarInterface from "./sidebar-interface";
+import { Item } from "./types";
+import handleRealtimeEvent from "../lib/handle-realtime-event";
 
 const CallInterface = () => {
   const [selectedPhoneNumber, setSelectedPhoneNumber] = useState("");
@@ -40,7 +40,8 @@ const CallInterface = () => {
 
   useEffect(() => {
     if (allConfigsReady && !ws) {
-      const newWs = new WebSocket("ws://localhost:8081/logs");
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8081';
+      const newWs = new WebSocket(`${wsUrl}/logs`);
 
       newWs.onopen = () => {
         console.log("Connected to logs websocket");

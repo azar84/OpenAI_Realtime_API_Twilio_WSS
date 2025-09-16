@@ -5,7 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     // Fetch tools from the backend websocket server
     console.log('🔧 Fetching tools from backend server...');
-    const response = await fetch('http://localhost:8081/api/tools');
+    const serverUrl = process.env.WEBSOCKET_SERVER_URL || 'http://localhost:8081';
+    const response = await fetch(`${serverUrl}/api/tools`);
     if (!response.ok) {
       throw new Error(`Backend server responded with ${response.status}`);
     }

@@ -7,9 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 import { Circle, CheckCircle, Loader2 } from "lucide-react";
 import { PhoneNumber } from "@/components/types";
 import {
@@ -18,7 +18,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "./ui/select";
 
 export default function ChecklistAndConfig({
   ready,
@@ -44,7 +44,13 @@ export default function ChecklistAndConfig({
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [ngrokLoading, setNgrokLoading] = useState(false);
 
-  const appendedTwimlUrl = publicUrl ? `${publicUrl}/twiml` : "";
+  // Use environment variables directly
+  const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || '';
+  // For webhook URL, we need to get it from server-side environment variables
+  const [productionTwimlUrl, setProductionTwimlUrl] = useState('');
+  const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
+  
+  const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
   const isWebhookMismatch =
     appendedTwimlUrl && currentVoiceUrl && appendedTwimlUrl !== currentVoiceUrl;
 
@@ -74,19 +80,39 @@ export default function ChecklistAndConfig({
           setSelectedPhoneNumber(selected.friendlyName || "");
         }
 
-        // 3. Check local server & public URL
-        let foundPublicUrl = "";
-        try {
-          const resLocal = await fetch("http://localhost:8081/public-url");
-          if (resLocal.ok) {
-            const pubData = await resLocal.json();
-            foundPublicUrl = pubData?.publicUrl || "";
-            setLocalServerUp(true);
-            setPublicUrl(foundPublicUrl);
-          } else {
-            throw new Error("Local server not responding");
+        // 3. Get production webhook URL from server
+        if (isProductionMode) {
+          try {
+            const webhookRes = await fetch("/api/twilio/webhook-local");
+            if (webhookRes.ok) {
+              const webhookData = await webhookRes.json();
+              setProductionTwimlUrl(webhookData.webhookUrl || '');
+            }
+          } catch (err) {
+            console.error('Failed to fetch webhook URL:', err);
           }
-        } catch {
+        }
+
+        // 4. Check local server & public URL (skip in production mode)
+        if (!isProductionMode) {
+          let foundPublicUrl = "";
+          try {
+            const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+            const resLocal = await fetch(`${serverUrl}/public-url`);
+            if (resLocal.ok) {
+              const pubData = await resLocal.json();
+              foundPublicUrl = pubData?.publicUrl || "";
+              setLocalServerUp(true);
+              setPublicUrl(foundPublicUrl);
+            } else {
+              throw new Error("Local server not responding");
+            }
+          } catch {
+            setLocalServerUp(false);
+            setPublicUrl("");
+          }
+        } else {
+          // In production mode, clear these values
           setLocalServerUp(false);
           setPublicUrl("");
         }
@@ -101,7 +127,7 @@ export default function ChecklistAndConfig({
       polling = false;
       clearInterval(intervalId);
     };
-  }, [currentNumberSid, setSelectedPhoneNumber]);
+  }, [currentNumberSid, setSelectedPhoneNumber, isProductionMode]);
 
   const updateWebhook = async () => {
     if (!currentNumberSid || !appendedTwimlUrl) return;
@@ -150,7 +176,7 @@ export default function ChecklistAndConfig({
   };
 
   const checklist = useMemo(() => {
-    return [
+    const baseChecklist = [
       {
         label: "Set up Twilio account",
         done: hasCredentials,
@@ -210,64 +236,81 @@ export default function ChecklistAndConfig({
             </Button>
           ),
       },
-      {
-        label: "Start local WebSocket server",
-        done: localServerUp,
-        description: "cd websocket-server && npm run dev",
-        field: null,
-      },
-      {
-        label: "Start ngrok",
-        done: publicUrlAccessible,
-        description: "Then set ngrok URL in websocket-server/.env",
-        field: (
-          <div className="flex items-center gap-2 w-full">
-            <div className="flex-1">
-              <Input value={publicUrl} disabled />
-            </div>
-            <div className="flex-1">
-              <Button
-                variant="outline"
-                onClick={checkNgrok}
-                disabled={ngrokLoading || !localServerUp || !publicUrl}
-                className="w-full"
-              >
-                {ngrokLoading ? (
-                  <Loader2 className="mr-2 h-4 animate-spin" />
-                ) : (
-                  "Check ngrok"
-                )}
-              </Button>
-            </div>
-          </div>
-        ),
-      },
-      {
-        label: "Update Twilio webhook URL",
-        done: !!publicUrl && !isWebhookMismatch,
-        description: "Can also be done manually in Twilio console",
-        field: (
-          <div className="flex items-center gap-2 w-full">
-            <div className="flex-1">
-              <Input value={currentVoiceUrl} disabled className="w-full" />
-            </div>
-            <div className="flex-1">
-              <Button
-                onClick={updateWebhook}
-                disabled={webhookLoading}
-                className="w-full"
-              >
-                {webhookLoading ? (
-                  <Loader2 className="mr-2 h-4 animate-spin" />
-                ) : (
-                  "Update Webhook"
-                )}
-              </Button>
-            </div>
-          </div>
-        ),
-      },
     ];
+
+    // Add development-specific steps
+    if (!isProductionMode) {
+      baseChecklist.push(
+        {
+          label: "Start local WebSocket server",
+          done: localServerUp,
+          description: "cd websocket-server && npm run dev",
+          field: <div className="text-sm text-gray-500">Run: cd websocket-server && npm run dev</div>,
+        },
+        {
+          label: "Start ngrok",
+          done: publicUrlAccessible,
+          description: "Then set ngrok URL in websocket-server/.env",
+          field: (
+            <div className="flex items-center gap-2 w-full">
+              <div className="flex-1">
+                <Input value={publicUrl} disabled />
+              </div>
+              <div className="flex-1">
+                <Button
+                  variant="outline"
+                  onClick={checkNgrok}
+                  disabled={ngrokLoading || !localServerUp || !publicUrl}
+                  className="w-full"
+                >
+                  {ngrokLoading ? (
+                    <Loader2 className="mr-2 h-4 animate-spin" />
+                  ) : (
+                    "Check ngrok"
+                  )}
+                </Button>
+              </div>
+            </div>
+          ),
+        }
+      );
+    }
+
+    // Add webhook step (different for dev vs production)
+    baseChecklist.push({
+      label: "Update Twilio webhook URL",
+      done: !isWebhookMismatch,
+      description: isProductionMode 
+        ? `Set webhook URL to: ${productionTwimlUrl}`
+        : "Can also be done manually in Twilio console",
+      field: (
+        <div className="flex items-center gap-2 w-full">
+          <div className="flex-1">
+            <Input 
+              value={isProductionMode ? productionTwimlUrl : currentVoiceUrl} 
+              disabled 
+              className="w-full" 
+              placeholder="Webhook URL"
+            />
+          </div>
+          <div className="flex-1">
+            <Button
+              onClick={updateWebhook}
+              disabled={webhookLoading || !appendedTwimlUrl}
+              className="w-full"
+            >
+              {webhookLoading ? (
+                <Loader2 className="mr-2 h-4 animate-spin" />
+              ) : (
+                "Update Webhook"
+              )}
+            </Button>
+          </div>
+        </div>
+      ),
+    });
+
+    return baseChecklist;
   }, [
     hasCredentials,
     phoneNumbers,
@@ -281,6 +324,8 @@ export default function ChecklistAndConfig({
     webhookLoading,
     ngrokLoading,
     setSelectedPhoneNumber,
+    isProductionMode,
+    productionTwimlUrl,
   ]);
 
   useEffect(() => {
@@ -310,6 +355,24 @@ export default function ChecklistAndConfig({
             This sample app requires a few steps before you get started
           </DialogDescription>
         </DialogHeader>
+
+        {/* Environment Mode Indicator */}
+        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-gray-900">Environment Mode</h3>
+              <p className="text-sm text-gray-600">
+                {isProductionMode 
+                  ? "Production mode: Using environment variables" 
+                  : "Development mode: Local setup with ngrok"
+                }
+              </p>
+            </div>
+            <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              {isProductionMode ? "Production" : "Development"}
+            </div>
+          </div>
+        </div>
 
         <div className="mt-4 space-y-0">
           {checklist.map((item, i) => (

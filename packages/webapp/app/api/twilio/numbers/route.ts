@@ -1,4 +1,4 @@
-import twilioClient from "@/lib/twilio";
+import twilioClient from "../../../lib/twilio";
 
 export async function GET() {
   if (!twilioClient) {

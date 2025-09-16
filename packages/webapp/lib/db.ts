@@ -12,16 +12,25 @@ const dbConfig = {
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
 };
 
-// Create a connection pool
-const pool = new Pool(dbConfig);
+// Create a connection pool only if not in build mode
+let pool: Pool | null = null;
+
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  pool = new Pool(dbConfig);
+}
 
 // Handle pool errors
-pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-});
+if (pool) {
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+  });
+}
 
 // Database connection helper
 export async function getDbClient(): Promise<PoolClient> {
+  if (!pool) {
+    throw new Error('Database pool not initialized. This may be running in build mode.');
+  }
   try {
     const client = await pool.connect();
     return client;
@@ -269,5 +278,7 @@ export async function testConnection(): Promise<boolean> {
 
 // Close pool (for cleanup)
 export async function closePool(): Promise<void> {
-  await pool.end();
+  if (pool) {
+    await pool.end();
+  }
 }
