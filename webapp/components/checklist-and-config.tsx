@@ -46,9 +46,8 @@ export default function ChecklistAndConfig({
 
   // Use environment variables directly
   const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || '';
-  // Clean up the URL and convert to HTTPS for webhook
-  const cleanWsUrl = productionWsUrl.replace(/^(wss?:\/\/)+/, ''); // Remove any wss:// or ws:// prefixes
-  const productionTwimlUrl = cleanWsUrl ? `https://${cleanWsUrl}/twiml` : '';
+  // Use NEXT_PUBLIC_WEBSOCKET_SERVER_URL directly (it already has the correct protocol)
+  const productionTwimlUrl = process.env.NEXT_PUBLIC_WEBSOCKET_SERVER_URL ? `${process.env.NEXT_PUBLIC_WEBSOCKET_SERVER_URL}/twiml` : '';
   const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
   
   const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
