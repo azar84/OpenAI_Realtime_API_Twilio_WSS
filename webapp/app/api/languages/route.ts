@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+import { getServerUrl } from '@/lib/server-url';
 
 export async function GET() {
   try {
+    const serverUrl = getServerUrl();
     const response = await fetch(`${serverUrl}/api/languages`, {
       method: 'GET',
       headers: {
