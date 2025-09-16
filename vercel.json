@@ -1,5 +1,1 @@
-{
-  "buildCommand": "npm run build --prefix webapp",
-  "outputDirectory": "webapp/.next",
-  "installCommand": "npm install --prefix webapp"
-}
+{}
