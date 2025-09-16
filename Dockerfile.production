@@ -21,11 +21,11 @@ COPY packages/shared/package*.json ./packages/shared/
 COPY packages/websocket-server/package*.json ./packages/websocket-server/
 COPY packages/webapp/package*.json ./packages/webapp/
 
-# Install dependencies for all services
-RUN npm install --only=production
+# Install dependencies for all services (including dev dependencies for build)
+RUN npm install
 RUN cd packages/shared && npm install
 RUN cd packages/websocket-server && npm install
-RUN cd packages/webapp && npm install --only=production
+RUN cd packages/webapp && npm install
 
 # Copy source code
 COPY packages/shared/ ./packages/shared/
@@ -44,6 +44,13 @@ RUN npm run build
 # Build Next.js webapp
 WORKDIR /app/packages/webapp
 RUN npm run build
+
+# Clean up dev dependencies after build (optional - saves space)
+WORKDIR /app
+RUN npm prune --production
+RUN cd packages/shared && npm prune --production
+RUN cd packages/websocket-server && npm prune --production
+RUN cd packages/webapp && npm prune --production
 
 # Create production image
 FROM node:18-alpine AS production
