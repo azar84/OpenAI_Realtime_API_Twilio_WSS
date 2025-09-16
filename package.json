@@ -1,4 +1,9 @@
 {
+  "name": "openai-realtime-twilio-demo",
+  "version": "1.0.0",
+  "scripts": {
+    "vercel-build": "cd webapp && npm install && npm run build"
+  },
   "dependencies": {
     "pg": "^8.16.3"
   }
