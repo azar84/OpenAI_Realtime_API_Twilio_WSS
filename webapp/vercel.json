@@ -10,5 +10,11 @@
   },
   "env": {
     "NODE_ENV": "production"
+  },
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "debug/remote-baseline-restore": true
+    }
   }
 }
