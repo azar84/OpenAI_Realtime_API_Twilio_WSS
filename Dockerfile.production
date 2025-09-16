@@ -39,10 +39,14 @@ RUN npm run build
 
 # Build WebSocket server
 WORKDIR /app/packages/websocket-server
+# Clean any existing build artifacts
+RUN rm -rf dist
 RUN npm run build
 
 # Build Next.js webapp
 WORKDIR /app/packages/webapp
+# Clean any existing build artifacts
+RUN rm -rf .next
 RUN npm run build
 
 # Clean up dev dependencies after build (optional - saves space)
