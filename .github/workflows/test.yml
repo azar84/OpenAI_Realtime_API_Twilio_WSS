@@ -1,0 +1,22 @@
+name: Test Workflow
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Test step
+      run: |
+        echo "🚀 Test workflow is running!"
+        echo "✅ This confirms GitHub Actions is working"
+        echo "📅 Current time: $(date)"
+        echo "🌿 Branch: ${{ github.ref_name }}"
+        echo "📝 Commit: ${{ github.sha }}"
