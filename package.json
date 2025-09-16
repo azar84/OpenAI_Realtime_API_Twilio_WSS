@@ -1,5 +1,38 @@
 {
+  "name": "openai-realtime-twilio-demo",
+  "version": "1.0.0",
+  "description": "OpenAI Realtime API with Twilio integration - Monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build:shared && npm run build --workspaces --if-present",
+    "build:shared": "cd packages/shared && npm run build",
+    "dev": "npm run build:shared && node dev-orchestrator.js",
+    "dev:websocket": "cd packages/websocket-server && npm run dev",
+    "dev:webapp": "cd packages/webapp && npm run dev",
+    "dev:ngrok": "ngrok http 8081 --log=stdout",
+    "start": "npm run build:shared && concurrently \"npm run start:websocket\" \"npm run start:webapp\"",
+    "start:websocket": "cd packages/websocket-server && npm run start",
+    "start:webapp": "cd packages/webapp && npm run start",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "install-all": "npm install",
+    "start-all": "cd packages/webapp && npm run start-all",
+    "stop-all": "cd packages/webapp && npm run stop-all",
+    "build:all": "npm run build:shared && npm run build"
+  },
   "dependencies": {
-    "pg": "^8.16.3"
+    "axios": "^1.7.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.2.1",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }

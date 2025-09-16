@@ -219,8 +219,7 @@ Enable detailed logging:
 
 ```bash
 # In websocket-server/.env
-DEBUG=true
-NODE_ENV=development
+# Add any custom environment variables here
 ```
 
 ## 🧪 Development
