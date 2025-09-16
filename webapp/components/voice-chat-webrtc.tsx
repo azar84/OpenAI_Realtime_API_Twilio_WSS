@@ -28,7 +28,8 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
   // Function to fetch ephemeral key and configuration
   const fetchEphemeralConfig = async (): Promise<{key: string, config: any}> => {
     console.log("🔑 Fetching ephemeral key and configuration...");
-    const response = await fetch('http://localhost:8081/api/ephemeral');
+    const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+    const response = await fetch(`${serverUrl}/api/ephemeral`);
     if (!response.ok) {
       throw new Error(`Failed to get ephemeral key: ${response.status}`);
     }
@@ -317,7 +318,8 @@ const VoiceChatWebRTC: React.FC<VoiceChatProps> = ({ onTranscript }) => {
               
               try {
                 // Send function call to our backend for execution
-                const response = await fetch('http://localhost:8081/api/function-call', {
+                const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+                const response = await fetch(`${serverUrl}/api/function-call`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',

@@ -198,7 +198,7 @@ const ConversationHistory: React.FC = () => {
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <Button onClick={loadSessions}>Retry</Button>
+          <Button onClick={() => loadSessions(true)}>Retry</Button>
         </div>
       </div>
     );

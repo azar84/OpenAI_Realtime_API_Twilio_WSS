@@ -4,6 +4,14 @@ import { AgentConfigDB, testConnection } from '@/lib/db';
 // GET /api/agent-config - Get all configurations or active configuration
 export async function GET(request: NextRequest) {
   try {
+    // Skip database operations during build
+    if (process.env.VERCEL === '1' && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Database operations not available during build' },
+        { status: 503 }
+      );
+    }
+
     // Test database connection
     const isConnected = await testConnection();
     if (!isConnected) {
@@ -187,7 +195,8 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     // Call the WebSocket server to reload configuration
-    const response = await fetch('http://localhost:8081/reload-config', {
+    const serverUrl = process.env.WEBSOCKET_SERVER_URL || 'http://localhost:8081';
+    const response = await fetch(`${serverUrl}/reload-config`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
