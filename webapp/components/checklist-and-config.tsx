@@ -224,7 +224,7 @@ export default function ChecklistAndConfig({
           label: "Start local WebSocket server",
           done: localServerUp,
           description: "cd websocket-server && npm run dev",
-          field: null,
+          field: <div className="text-sm text-gray-500">Run: cd websocket-server && npm run dev</div>,
         },
         {
           label: "Start ngrok",
