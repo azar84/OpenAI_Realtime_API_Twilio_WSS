@@ -3,6 +3,7 @@
     "vercel-build": "cd webapp && npm install && npm run build"
   },
   "dependencies": {
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "next": "^14.0.0"
   }
 }
