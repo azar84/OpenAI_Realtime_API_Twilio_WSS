@@ -1,0 +1,255 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up environment variables
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+        echo "TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}" >> $GITHUB_ENV
+        echo "TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}" >> $GITHUB_ENV
+        echo "TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}" >> $GITHUB_ENV
+        echo "N8N_TOOL_URL=${{ secrets.N8N_TOOL_URL }}" >> $GITHUB_ENV
+        echo "N8N_SECRET=${{ secrets.N8N_SECRET }}" >> $GITHUB_ENV
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sshpass
+        
+    - name: Deploy to VPS
+      run: |
+        # Create deployment directory
+        rm -rf deployment-production
+        mkdir -p deployment-production
+        
+        # Copy necessary files
+        cp Dockerfile.production deployment-production/Dockerfile
+        cp -r packages deployment-production/
+        cp -r database deployment-production/
+        cp -r docker deployment-production/
+        
+        # Create production environment file
+        cat > deployment-production/.env << EOF
+        # Database Configuration
+        DB_NAME=openai_realtime_db
+        DB_USER=postgres
+        DB_PASSWORD=postgres123
+        
+        # OpenAI Configuration
+        OPENAI_API_KEY=${OPENAI_API_KEY}
+        OPENAI_MODEL=gpt-4o-realtime-preview-2024-10-01
+        
+        # Twilio Configuration
+        TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+        TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+        TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+        
+        # Server Configuration
+        PUBLIC_URL=http://51.222.142.170
+        NODE_ENV=production
+        DEBUG=false
+        PORT=8081
+        
+        # WebSocket Configuration
+        NEXT_PUBLIC_WS_URL=ws://51.222.142.170:8081
+        WEBSOCKET_SERVER_URL=http://51.222.142.170:8081
+        
+        # Tool Integration (optional)
+        N8N_TOOL_URL=${N8N_TOOL_URL}
+        N8N_SECRET=${N8N_SECRET}
+        
+        # Audio Configuration
+        AUDIO_FORMAT=g711_ulaw
+        EOF
+        
+        # Create docker-compose file for production
+        cat > deployment-production/docker-compose.yml << EOF
+        version: '3.8'
+        
+        services:
+          app:
+            build:
+              context: .
+              dockerfile: Dockerfile
+            container_name: openai-realtime-app
+            environment:
+              # Database Configuration
+              - DB_HOST=localhost
+              - DB_PORT=5432
+              - DB_NAME=openai_realtime_db
+              - DB_USER=postgres
+              - DB_PASSWORD=postgres123
+              
+              # OpenAI Configuration
+              - OPENAI_API_KEY=${OPENAI_API_KEY}
+              - OPENAI_MODEL=gpt-4o-realtime-preview-2024-10-01
+              
+              # Twilio Configuration
+              - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+              - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+              - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+              
+              # Server Configuration
+              - PUBLIC_URL=http://51.222.142.170
+              - NODE_ENV=production
+              - DEBUG=false
+              - PORT=8081
+              
+              # WebSocket Configuration
+              - NEXT_PUBLIC_WS_URL=ws://51.222.142.170:8081
+              - WEBSOCKET_SERVER_URL=http://51.222.142.170:8081
+              
+              # Tool Integration (optional)
+              - N8N_TOOL_URL=${N8N_TOOL_URL}
+              - N8N_SECRET=${N8N_SECRET}
+              
+              # Audio Configuration
+              - AUDIO_FORMAT=g711_ulaw
+            ports:
+              - "80:80"
+              - "3000:3000"
+              - "8081:8081"
+              - "5432:5432"
+            restart: unless-stopped
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+              start_period: 60s
+            volumes:
+              - postgres_data:/var/lib/postgresql/data
+              - app_logs:/var/log/supervisor
+        
+        volumes:
+          postgres_data:
+            driver: local
+          app_logs:
+            driver: local
+        EOF
+        
+        # Create deployment script for VPS
+        cat > deployment-production/deploy-on-vps.sh << 'EOF'
+        #!/bin/bash
+        
+        echo "🚀 Starting deployment on VPS..."
+        
+        # Update system packages
+        echo "📦 Updating system packages..."
+        sudo apt-get update -y
+        
+        # Install Docker if not present
+        echo "🐳 Installing Docker..."
+        if ! command -v docker &> /dev/null; then
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $USER
+            rm get-docker.sh
+        fi
+        
+        # Install Docker Compose if not present
+        echo "🔧 Installing Docker Compose..."
+        if ! command -v docker-compose &> /dev/null; then
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+        fi
+        
+        # Stop any existing containers
+        echo "🛑 Stopping existing containers..."
+        sudo docker-compose down || true
+        
+        # Remove old images to free space
+        echo "🧹 Cleaning up old Docker images..."
+        sudo docker system prune -f || true
+        
+        # Build and start the application
+        echo "🏗️  Building and starting the application..."
+        sudo docker-compose up --build -d
+        
+        # Wait for services to be ready
+        echo "⏳ Waiting for services to be ready..."
+        sleep 60
+        
+        # Check service status
+        echo "🔍 Checking service status..."
+        sudo docker-compose ps
+        
+        # Test endpoints
+        echo "🧪 Testing application endpoints..."
+        sleep 10
+        
+        # Test health endpoint
+        if curl -f http://localhost/health; then
+            echo "✅ Health endpoint is working"
+        else
+            echo "❌ Health endpoint failed"
+        fi
+        
+        # Test WebSocket server
+        if curl -f http://localhost:8081/tools; then
+            echo "✅ WebSocket server is working"
+        else
+            echo "❌ WebSocket server failed"
+        fi
+        
+        # Test web application
+        if curl -f http://localhost:3000; then
+            echo "✅ Web application is working"
+        else
+            echo "❌ Web application failed"
+        fi
+        
+        echo "🎉 Deployment completed!"
+        echo "📱 Your application is available at:"
+        echo "   - Main Interface: http://$(curl -s ifconfig.me)"
+        echo "   - WebSocket Server: http://$(curl -s ifconfig.me):8081"
+        echo "   - Tools Endpoint: http://$(curl -s ifconfig.me):8081/tools"
+        echo "   - Health Check: http://$(curl -s ifconfig.me)/health"
+        
+        # Show logs
+        echo "📋 Recent logs:"
+        sudo docker-compose logs --tail=20
+        EOF
+        
+        chmod +x deployment-production/deploy-on-vps.sh
+        
+        # Upload files to VPS
+        echo "📤 Uploading files to VPS..."
+        sshpass -p "htc792980" scp -o StrictHostKeyChecking=no -r deployment-production/* debian@51.222.142.170:/home/debian/openai-realtime-production/
+        
+        # Run deployment commands on VPS
+        echo "🔧 Running deployment on VPS..."
+        sshpass -p "htc792980" ssh -o StrictHostKeyChecking=no debian@51.222.142.170 << 'EOF'
+        cd /home/debian/openai-realtime-production
+        
+        echo "🚀 Starting VPS deployment process..."
+        chmod +x deploy-on-vps.sh
+        ./deploy-on-vps.sh
+        EOF
+        
+        # Cleanup
+        rm -rf deployment-production
+        
+        echo "🎉 Deployment completed successfully!"
+        
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ ${{ job.status }} == 'success' ]; then
+          echo "✅ Deployment successful!"
+          echo "🌐 Application available at: http://51.222.142.170"
+        else
+          echo "❌ Deployment failed!"
+        fi
