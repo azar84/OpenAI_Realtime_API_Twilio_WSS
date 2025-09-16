@@ -22,10 +22,10 @@ COPY packages/websocket-server/package*.json ./packages/websocket-server/
 COPY packages/webapp/package*.json ./packages/webapp/
 
 # Install dependencies for all services
-RUN npm ci --only=production
-RUN cd packages/shared && npm ci
-RUN cd packages/websocket-server && npm ci
-RUN cd packages/webapp && npm ci --only=production
+RUN npm install --only=production
+RUN cd packages/shared && npm install
+RUN cd packages/websocket-server && npm install
+RUN cd packages/webapp && npm install --only=production
 
 # Copy source code
 COPY packages/shared/ ./packages/shared/
