@@ -46,17 +46,10 @@ export default function ChecklistAndConfig({
 
   // Use environment variables directly
   const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || '';
-  // Convert WebSocket URL to HTTPS for webhook (wss:// -> https://)
-  const productionTwimlUrl = productionWsUrl ? `${productionWsUrl.replace('wss://', 'https://').replace('ws://', 'http://')}/twiml` : '';
+  // Clean up the URL and convert to HTTPS for webhook
+  const cleanWsUrl = productionWsUrl.replace(/^(wss?:\/\/)+/, ''); // Remove any wss:// or ws:// prefixes
+  const productionTwimlUrl = cleanWsUrl ? `https://${cleanWsUrl}/twiml` : '';
   const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
-  
-  // Debug: Log environment variables
-  console.log('Environment variables:', {
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
-    productionWsUrl,
-    productionTwimlUrl,
-    isProductionMode
-  });
   
   const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
   const isWebhookMismatch =
