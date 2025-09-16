@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import TopBar from "@/components/top-bar";
-import ChecklistAndConfig from "@/components/checklist-and-config";
-import SidebarInterface from "@/components/sidebar-interface";
-import { Item } from "@/components/types";
-import handleRealtimeEvent from "@/lib/handle-realtime-event";
+import TopBar from "./top-bar";
+import ChecklistAndConfig from "./checklist-and-config";
+import SidebarInterface from "./sidebar-interface";
+import { Item } from "./types";
+import handleRealtimeEvent from "../lib/handle-realtime-event";
 
 const CallInterface = () => {
   const [selectedPhoneNumber, setSelectedPhoneNumber] = useState("");
