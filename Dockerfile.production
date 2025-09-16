@@ -1,0 +1,114 @@
+# Multi-stage build for production monolithic container
+FROM node:18-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    postgresql-client \
+    bash \
+    curl \
+    git \
+    && rm -rf /var/cache/apk/*
+
+# Install PostgreSQL server
+RUN apk add --no-cache postgresql postgresql-contrib
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files for all services
+COPY package*.json ./
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/websocket-server/package*.json ./packages/websocket-server/
+COPY packages/webapp/package*.json ./packages/webapp/
+
+# Install dependencies for all services
+RUN npm ci --only=production
+RUN cd packages/shared && npm ci
+RUN cd packages/websocket-server && npm ci
+RUN cd packages/webapp && npm ci --only=production
+
+# Copy source code
+COPY packages/shared/ ./packages/shared/
+COPY packages/websocket-server/ ./packages/websocket-server/
+COPY packages/webapp/ ./packages/webapp/
+COPY database/ ./database/
+
+# Build shared package first
+WORKDIR /app/packages/shared
+RUN npm run build
+
+# Build WebSocket server
+WORKDIR /app/packages/websocket-server
+RUN npm run build
+
+# Build Next.js webapp
+WORKDIR /app/packages/webapp
+RUN npm run build
+
+# Create production image
+FROM node:18-alpine AS production
+
+# Install system dependencies
+RUN apk add --no-cache \
+    postgresql \
+    postgresql-contrib \
+    bash \
+    curl \
+    supervisor \
+    nginx \
+    su-exec \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /app
+
+# Create directories
+RUN mkdir -p /var/lib/postgresql/data \
+    && mkdir -p /var/log/supervisor \
+    && mkdir -p /etc/supervisor/conf.d \
+    && mkdir -p /etc/nginx \
+    && mkdir -p /var/log/nginx \
+    && mkdir -p /run/postgresql \
+    && mkdir -p /var/log/postgresql
+
+# Copy built applications
+COPY --from=base /app/packages/shared/dist ./packages/shared/dist
+COPY --from=base /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=base /app/packages/shared/package.json ./packages/shared/
+COPY --from=base /app/packages/websocket-server/dist ./packages/websocket-server/dist
+COPY --from=base /app/packages/websocket-server/node_modules ./packages/websocket-server/node_modules
+COPY --from=base /app/packages/websocket-server/package.json ./packages/websocket-server/
+COPY --from=base /app/packages/websocket-server/src ./packages/websocket-server/src
+COPY --from=base /app/packages/webapp/.next ./packages/webapp/.next
+COPY --from=base /app/packages/webapp/node_modules ./packages/webapp/node_modules
+COPY --from=base /app/packages/webapp/package.json ./packages/webapp/
+COPY --from=base /app/packages/webapp/public ./packages/webapp/public
+COPY --from=base /app/database ./database
+
+# Copy configuration files
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/init-db.sh /usr/local/bin/init-db.sh
+COPY docker/start.sh /usr/local/bin/start.sh
+
+# Set permissions
+RUN chmod +x /usr/local/bin/init-db.sh \
+    && chmod +x /usr/local/bin/start.sh \
+    && chown -R postgres:postgres /var/lib/postgresql \
+    && chown -R postgres:postgres /var/log/postgresql \
+    && chown -R postgres:postgres /run/postgresql
+
+# Create non-root user for Node.js services
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nodejs -u 1001 \
+    && chown -R nodejs:nodejs /app
+
+# Expose ports
+EXPOSE 80 3000 8081 5432
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost/health || exit 1
+
+# Start all services
+CMD ["/usr/local/bin/start.sh"]
