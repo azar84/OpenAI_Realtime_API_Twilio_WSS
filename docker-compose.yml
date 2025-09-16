@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Monolithic Container with all services
+  openai-realtime:
+    build: .
+    container_name: openai-realtime-monolith
+    environment:
+      # Database Configuration
+      - DB_PASSWORD=${DB_PASSWORD:-postgres123}
+      - DB_NAME=${DB_NAME:-openai_realtime_db}
+      - DB_USER=${DB_USER:-postgres}
+      
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Twilio Configuration
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      
+      # Server Configuration
+      - PUBLIC_URL=${PUBLIC_URL}
+      - NODE_ENV=production
+      - DEBUG=${DEBUG:-false}
+      
+      # Tool Integration (optional)
+      - N8N_TOOL_URL=${N8N_TOOL_URL:-}
+      - N8N_SECRET=${N8N_SECRET:-}
+    ports:
+      - "80:80"      # Nginx (main entry point)
+      - "3000:3000"  # Next.js webapp (direct access)
+      - "8081:8081"  # WebSocket server (direct access)
+      - "5432:5432"  # PostgreSQL (direct access)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    driver: local
