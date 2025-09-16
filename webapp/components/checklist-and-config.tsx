@@ -43,10 +43,13 @@ export default function ChecklistAndConfig({
   const [allChecksPassed, setAllChecksPassed] = useState(false);
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [ngrokLoading, setNgrokLoading] = useState(false);
-  const [isProductionMode, setIsProductionMode] = useState(false);
-  const [webhookManuallyCompleted, setWebhookManuallyCompleted] = useState(false);
 
-  const appendedTwimlUrl = publicUrl ? `${publicUrl}/twiml` : "";
+  // Use environment variables directly
+  const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || '';
+  const productionTwimlUrl = productionWsUrl ? `${productionWsUrl}/twiml` : '';
+  const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
+  
+  const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
   const isWebhookMismatch =
     appendedTwimlUrl && currentVoiceUrl && appendedTwimlUrl !== currentVoiceUrl;
 
@@ -262,41 +265,24 @@ export default function ChecklistAndConfig({
     // Add webhook step (different for dev vs production)
     baseChecklist.push({
       label: "Update Twilio webhook URL",
-      done: isProductionMode 
-        ? webhookManuallyCompleted 
-        : (!!publicUrl && !isWebhookMismatch),
+      done: !isWebhookMismatch,
       description: isProductionMode 
-        ? "Manually update webhook URL in Twilio console to point to your production server"
+        ? `Set webhook URL to: ${productionTwimlUrl}`
         : "Can also be done manually in Twilio console",
-      field: isProductionMode ? (
+      field: (
         <div className="flex items-center gap-2 w-full">
           <div className="flex-1">
             <Input 
-              value={currentVoiceUrl || "No webhook URL set"} 
+              value={isProductionMode ? productionTwimlUrl : currentVoiceUrl} 
               disabled 
               className="w-full" 
-              placeholder="Current webhook URL"
+              placeholder="Webhook URL"
             />
           </div>
           <div className="flex-1">
             <Button
-              onClick={() => setWebhookManuallyCompleted(true)}
-              disabled={webhookManuallyCompleted}
-              className="w-full"
-            >
-              {webhookManuallyCompleted ? "✓ Completed" : "Mark as Complete"}
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 w-full">
-          <div className="flex-1">
-            <Input value={currentVoiceUrl} disabled className="w-full" />
-          </div>
-          <div className="flex-1">
-            <Button
               onClick={updateWebhook}
-              disabled={webhookLoading}
+              disabled={webhookLoading || !appendedTwimlUrl}
               className="w-full"
             >
               {webhookLoading ? (
@@ -325,7 +311,7 @@ export default function ChecklistAndConfig({
     ngrokLoading,
     setSelectedPhoneNumber,
     isProductionMode,
-    webhookManuallyCompleted,
+    productionTwimlUrl,
   ]);
 
   useEffect(() => {
@@ -356,30 +342,21 @@ export default function ChecklistAndConfig({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Production Mode Toggle */}
+        {/* Environment Mode Indicator */}
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-medium text-gray-900">Environment Mode</h3>
               <p className="text-sm text-gray-600">
                 {isProductionMode 
-                  ? "Production mode: Skip local development steps" 
-                  : "Development mode: Full local setup with ngrok"
+                  ? "Production mode: Using environment variables" 
+                  : "Development mode: Local setup with ngrok"
                 }
               </p>
             </div>
-            <Button
-              variant={isProductionMode ? "default" : "outline"}
-              onClick={() => {
-                setIsProductionMode(!isProductionMode);
-                if (!isProductionMode) {
-                  setWebhookManuallyCompleted(false);
-                }
-              }}
-              className="min-w-[120px]"
-            >
+            <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
               {isProductionMode ? "Production" : "Development"}
-            </Button>
+            </div>
           </div>
         </div>
 
