@@ -68,7 +68,7 @@ RUN mkdir -p /var/lib/postgresql/data \
 COPY --from=base /app/websocket-server/dist ./websocket-server/dist
 COPY --from=base /app/websocket-server/node_modules ./websocket-server/node_modules
 COPY --from=base /app/websocket-server/package.json ./websocket-server/
-COPY --from=base /app/websocket-server/src/twiml.xml ./websocket-server/dist/
+COPY --from=base /app/websocket-server/src ./websocket-server/src
 COPY --from=base /app/webapp ./webapp
 COPY --from=base /app/database ./database
 
