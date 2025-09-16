@@ -61,7 +61,8 @@ RUN mkdir -p /var/lib/postgresql/data \
     && mkdir -p /var/log/supervisor \
     && mkdir -p /etc/supervisor/conf.d \
     && mkdir -p /etc/nginx \
-    && mkdir -p /var/log/nginx
+    && mkdir -p /var/log/nginx \
+    && mkdir -p /run/postgresql
 
 # Copy built applications
 COPY --from=base /app/websocket-server/dist ./websocket-server/dist
@@ -80,7 +81,8 @@ COPY docker/start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/init-db.sh \
     && chmod +x /usr/local/bin/start.sh \
     && chown -R postgres:postgres /var/lib/postgresql \
-    && chown -R postgres:postgres /var/log/postgresql
+    && chown -R postgres:postgres /var/log/postgresql \
+    && chown -R postgres:postgres /run/postgresql
 
 # Create non-root user for Node.js services
 RUN addgroup -g 1001 -S nodejs \
