@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const serverUrl = process.env.NEXT_PUBLIC_WS_URL?.replace('ws://', 'http://').replace('wss://', 'https://') || 'http://localhost:8081';
+const serverUrl = process.env.WEBSOCKET_SERVER_URL || 'http://localhost:8081';
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerUrl } from '@/lib/server-url';
+
+const serverUrl = process.env.WEBSOCKET_SERVER_URL || 'http://localhost:8081';
 
 export async function GET() {
   try {
-    const serverUrl = getServerUrl();
     const response = await fetch(`${serverUrl}/api/languages`, {
       method: 'GET',
       headers: {
