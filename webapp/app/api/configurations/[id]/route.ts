@@ -10,6 +10,11 @@ export async function PUT(
     const body = await request.json();
     const id = params.id;
     
+    console.log('=== PUT /api/configurations/[id] ===');
+    console.log('ID:', id);
+    console.log('Server URL:', serverUrl);
+    console.log('Request body:', JSON.stringify(body, null, 2));
+    
     const response = await fetch(`${serverUrl}/api/configurations/${id}`, {
       method: 'PUT',
       headers: {
@@ -18,14 +23,23 @@ export async function PUT(
       body: JSON.stringify(body),
     });
 
+    console.log('Websocket server response status:', response.status);
+    console.log('Websocket server response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`Server error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Websocket server error response:', errorText);
+      throw new Error(`Server error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('Websocket server response data:', JSON.stringify(data, null, 2));
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error updating configuration:', error);
+    console.error('=== ERROR in PUT /api/configurations/[id] ===');
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Full error object:', error);
     return NextResponse.json(
       { error: 'Failed to update configuration' },
       { status: 500 }

@@ -548,6 +548,7 @@ export async function updateAgentConfig(id: number, configData: any): Promise<an
   try {
     console.log('updateAgentConfig - ID:', id);
     console.log('updateAgentConfig - Config Data:', configData);
+    console.log('updateAgentConfig - Config Data keys:', Object.keys(configData));
     
     // Simple update query - only update fields that are provided
     const updateFields = [];
@@ -742,7 +743,10 @@ export async function updateAgentConfig(id: number, configData: any): Promise<an
     }
     
     if (updateFields.length === 0) {
-      throw new Error('No fields to update');
+      console.log('updateAgentConfig - No fields to update, received data:', configData);
+      console.log('updateAgentConfig - Available fields in configData:', Object.keys(configData));
+      // Instead of throwing an error, just update the timestamp
+      console.log('updateAgentConfig - No valid fields to update, only updating timestamp');
     }
     
     // Add updated_at and id
@@ -755,6 +759,9 @@ export async function updateAgentConfig(id: number, configData: any): Promise<an
       WHERE id = $${paramCount}
       RETURNING *
     `;
+    
+    console.log('updateAgentConfig - Final updateFields:', updateFields);
+    console.log('updateAgentConfig - Final values:', values);
     
     console.log('updateAgentConfig - Query:', query);
     console.log('updateAgentConfig - Values:', values);
@@ -778,12 +785,38 @@ export async function updateAgentConfig(id: number, configData: any): Promise<an
 export async function deleteAgentConfig(id: number): Promise<void> {
   const client = await pool.connect();
   try {
+    console.log('deleteAgentConfig - Attempting to delete config with ID:', id);
+    
+    // First check if there are any sessions using this config
+    const sessionCheckQuery = 'SELECT COUNT(*) as session_count FROM sessions WHERE config_id = $1';
+    const sessionResult = await client.query(sessionCheckQuery, [id]);
+    const sessionCount = parseInt(sessionResult.rows[0].session_count);
+    
+    console.log('deleteAgentConfig - Found', sessionCount, 'sessions using this config');
+    
+    if (sessionCount > 0) {
+      console.log('deleteAgentConfig - Deleting', sessionCount, 'sessions that reference this config');
+      // Delete all sessions that reference this config
+      const deleteSessionsQuery = 'DELETE FROM sessions WHERE config_id = $1';
+      await client.query(deleteSessionsQuery, [id]);
+      console.log('deleteAgentConfig - Successfully deleted', sessionCount, 'sessions');
+    }
+    
     const query = 'DELETE FROM agent_configs WHERE id = $1';
     const result = await client.query(query, [id]);
+    
+    console.log('deleteAgentConfig - Delete result rowCount:', result.rowCount);
     
     if (result.rowCount === 0) {
       throw new Error(`Configuration with id ${id} not found`);
     }
+    
+    console.log('deleteAgentConfig - Successfully deleted config with ID:', id);
+  } catch (error) {
+    console.error('deleteAgentConfig - Error deleting config:', error);
+    console.error('deleteAgentConfig - Error message:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('deleteAgentConfig - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    throw error;
   } finally {
     client.release();
   }

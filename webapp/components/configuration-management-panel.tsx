@@ -178,36 +178,51 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
     try {
       setError(null); // Clear any previous errors
       
-      const configData = {
-        ...formData,
-        identity_option_id: formData.identity_option_id ? parseInt(formData.identity_option_id) : null,
-        task_option_id: formData.task_option_id ? parseInt(formData.task_option_id) : null,
-        demeanor_option_id: formData.demeanor_option_id ? parseInt(formData.demeanor_option_id) : null,
-        tone_option_id: formData.tone_option_id ? parseInt(formData.tone_option_id) : null,
-        enthusiasm_option_id: formData.enthusiasm_option_id ? parseInt(formData.enthusiasm_option_id) : null,
-        formality_option_id: formData.formality_option_id ? parseInt(formData.formality_option_id) : null,
-        emotion_option_id: formData.emotion_option_id ? parseInt(formData.emotion_option_id) : null,
-        filler_words_option_id: formData.filler_words_option_id ? parseInt(formData.filler_words_option_id) : null,
-        pacing_option_id: formData.pacing_option_id ? parseInt(formData.pacing_option_id) : null,
-        primary_language_id: formData.primary_language_id ? parseInt(formData.primary_language_id) : null,
-        secondary_language_ids: formData.secondary_language_ids,
-        custom_instructions: formData.custom_instructions ? formData.custom_instructions.split('\n').filter(s => s.trim()) : [],
-        
-        // Technical fields - convert strings to proper types
-        temperature: formData.temperature ? parseFloat(formData.temperature) : null,
-        max_tokens: formData.max_tokens ? parseInt(formData.max_tokens) : null,
-        turn_detection_threshold: formData.turn_detection_threshold ? parseFloat(formData.turn_detection_threshold) : null,
-        turn_detection_prefix_padding_ms: formData.turn_detection_prefix_padding_ms ? parseInt(formData.turn_detection_prefix_padding_ms) : null,
-        turn_detection_silence_duration_ms: formData.turn_detection_silence_duration_ms ? parseInt(formData.turn_detection_silence_duration_ms) : null,
-        turn_detection_create_response: Boolean(formData.turn_detection_create_response),
-        turn_detection_interrupt_response: Boolean(formData.turn_detection_interrupt_response),
-        turn_detection_eagerness: formData.turn_detection_eagerness || null,
-        tools_enabled: Boolean(formData.tools_enabled),
-        modalities: Array.isArray(formData.modalities) ? formData.modalities : [],
-        enabled_tools: Array.isArray(formData.enabled_tools) ? formData.enabled_tools : []
-      };
+      const configData: any = {};
+      
+      // Only include fields that have values
+      if (formData.config_title) configData.config_title = formData.config_title;
+      if (formData.config_description) configData.config_description = formData.config_description;
+      if (formData.name) configData.name = formData.name;
+      
+      // Personality fields - only include if they have values
+      if (formData.identity_option_id) configData.identity_option_id = parseInt(formData.identity_option_id);
+      if (formData.task_option_id) configData.task_option_id = parseInt(formData.task_option_id);
+      if (formData.demeanor_option_id) configData.demeanor_option_id = parseInt(formData.demeanor_option_id);
+      if (formData.tone_option_id) configData.tone_option_id = parseInt(formData.tone_option_id);
+      if (formData.enthusiasm_option_id) configData.enthusiasm_option_id = parseInt(formData.enthusiasm_option_id);
+      if (formData.formality_option_id) configData.formality_option_id = parseInt(formData.formality_option_id);
+      if (formData.emotion_option_id) configData.emotion_option_id = parseInt(formData.emotion_option_id);
+      if (formData.filler_words_option_id) configData.filler_words_option_id = parseInt(formData.filler_words_option_id);
+      if (formData.pacing_option_id) configData.pacing_option_id = parseInt(formData.pacing_option_id);
+      if (formData.primary_language_id) configData.primary_language_id = parseInt(formData.primary_language_id);
+      if (formData.secondary_language_ids && formData.secondary_language_ids.length > 0) configData.secondary_language_ids = formData.secondary_language_ids;
+      if (formData.custom_instructions) configData.custom_instructions = formData.custom_instructions.split('\n').filter(s => s.trim());
+      
+      // Technical fields - only include if they have values
+      if (formData.voice) configData.voice = formData.voice;
+      if (formData.model) configData.model = formData.model;
+      if (formData.temperature) configData.temperature = parseFloat(formData.temperature);
+      if (formData.max_tokens) configData.max_tokens = parseInt(formData.max_tokens);
+      if (formData.input_audio_format) configData.input_audio_format = formData.input_audio_format;
+      if (formData.output_audio_format) configData.output_audio_format = formData.output_audio_format;
+      if (formData.turn_detection_type) configData.turn_detection_type = formData.turn_detection_type;
+      if (formData.turn_detection_threshold) configData.turn_detection_threshold = parseFloat(formData.turn_detection_threshold);
+      if (formData.turn_detection_prefix_padding_ms) configData.turn_detection_prefix_padding_ms = parseInt(formData.turn_detection_prefix_padding_ms);
+      if (formData.turn_detection_silence_duration_ms) configData.turn_detection_silence_duration_ms = parseInt(formData.turn_detection_silence_duration_ms);
+      if (formData.turn_detection_eagerness) configData.turn_detection_eagerness = formData.turn_detection_eagerness;
+      
+      // Boolean fields - always include since they have default values
+      configData.turn_detection_create_response = Boolean(formData.turn_detection_create_response);
+      configData.turn_detection_interrupt_response = Boolean(formData.turn_detection_interrupt_response);
+      configData.tools_enabled = Boolean(formData.tools_enabled);
+      
+      // Array fields - only include if they have values
+      if (Array.isArray(formData.modalities) && formData.modalities.length > 0) configData.modalities = formData.modalities;
+      if (Array.isArray(formData.enabled_tools) && formData.enabled_tools.length > 0) configData.enabled_tools = formData.enabled_tools;
 
-      console.log('Saving config data:', configData);
+      console.log('=== Saving config data ===');
+      console.log('Config data:', JSON.stringify(configData, null, 2));
 
       const url = editingConfig ? `/api/configurations/${editingConfig.id}` : '/api/configurations';
       const method = editingConfig ? 'PUT' : 'POST';
@@ -221,10 +236,13 @@ export default function ConfigurationManagementPanel({ className }: Configuratio
       });
 
       console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+        console.error('=== Error response ===');
+        console.error('Status:', response.status);
+        console.error('Error text:', errorText);
         throw new Error(`Failed to save configuration: ${response.status} ${errorText}`);
       }
 
