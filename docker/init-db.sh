@@ -3,6 +3,9 @@
 # Initialize PostgreSQL database
 echo "Initializing PostgreSQL database..."
 
+# Initialize PostgreSQL database
+su-exec postgres /usr/bin/initdb -D /var/lib/postgresql/data
+
 # Start PostgreSQL service
 su-exec postgres /usr/bin/postgres -D /var/lib/postgresql/data &
 POSTGRES_PID=$!
