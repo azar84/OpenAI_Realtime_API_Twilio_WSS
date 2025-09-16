@@ -46,8 +46,8 @@ export default function ChecklistAndConfig({
 
   // Use environment variables directly
   const productionWsUrl = process.env.NEXT_PUBLIC_WS_URL || '';
-  // Use NEXT_PUBLIC_WEBSOCKET_SERVER_URL directly (it already has the correct protocol)
-  const productionTwimlUrl = process.env.NEXT_PUBLIC_WEBSOCKET_SERVER_URL ? `${process.env.NEXT_PUBLIC_WEBSOCKET_SERVER_URL}/twiml` : '';
+  // For webhook URL, we need to get it from server-side environment variables
+  const [productionTwimlUrl, setProductionTwimlUrl] = useState('');
   const isProductionMode = !!process.env.NEXT_PUBLIC_WS_URL;
   
   const appendedTwimlUrl = isProductionMode ? productionTwimlUrl : (publicUrl ? `${publicUrl}/twiml` : "");
@@ -80,7 +80,20 @@ export default function ChecklistAndConfig({
           setSelectedPhoneNumber(selected.friendlyName || "");
         }
 
-        // 3. Check local server & public URL (skip in production mode)
+        // 3. Get production webhook URL from server
+        if (isProductionMode) {
+          try {
+            const webhookRes = await fetch("/api/twilio/webhook-local");
+            if (webhookRes.ok) {
+              const webhookData = await webhookRes.json();
+              setProductionTwimlUrl(webhookData.webhookUrl || '');
+            }
+          } catch (err) {
+            console.error('Failed to fetch webhook URL:', err);
+          }
+        }
+
+        // 4. Check local server & public URL (skip in production mode)
         if (!isProductionMode) {
           let foundPublicUrl = "";
           try {
