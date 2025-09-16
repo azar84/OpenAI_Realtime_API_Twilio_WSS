@@ -909,6 +909,176 @@ export async function deletePersonalityOption(id: number): Promise<void> {
   }
 }
 
+// Conversation Messages Functions
+export async function saveConversationMessage(
+  sessionId: number,
+  messageType: 'user' | 'assistant' | 'function_call' | 'function_output' | 'system',
+  content: string,
+  streamSid?: string,
+  metadata?: any,
+  audioDurationMs?: number,
+  isAudio: boolean = false
+): Promise<number> {
+  const client = await pool.connect();
+  try {
+    console.log('saveConversationMessage - Saving message:', {
+      sessionId,
+      messageType,
+      content: content.substring(0, 100) + '...',
+      streamSid,
+      isAudio,
+      audioDurationMs
+    });
+
+    const query = `
+      SELECT save_conversation_message($1, $2, $3, $4, $5, $6, $7)
+    `;
+    
+    const result = await client.query(query, [
+      sessionId,
+      messageType,
+      content,
+      streamSid || null,
+      JSON.stringify(metadata || {}),
+      audioDurationMs || null,
+      isAudio
+    ]);
+    
+    const messageId = result.rows[0].save_conversation_message;
+    console.log('saveConversationMessage - Saved message with ID:', messageId);
+    
+    return messageId;
+  } catch (error) {
+    console.error('Error saving conversation message:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getConversationMessages(sessionId: number): Promise<any[]> {
+  const client = await pool.connect();
+  try {
+    console.log('getConversationMessages - Getting messages for session:', sessionId);
+    
+    const query = 'SELECT * FROM get_conversation_messages($1)';
+    const result = await client.query(query, [sessionId]);
+    
+    console.log('getConversationMessages - Found', result.rows.length, 'messages');
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting conversation messages:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function createSession(sessionId: string, configId?: number, twilioStreamSid?: string): Promise<number> {
+  const client = await pool.connect();
+  try {
+    console.log('createSession - Creating session:', { sessionId, configId, twilioStreamSid });
+    
+    const query = `
+      INSERT INTO sessions (session_id, config_id, twilio_stream_sid, status)
+      VALUES ($1, $2, $3, 'active')
+      RETURNING id
+    `;
+    
+    const result = await client.query(query, [sessionId, configId || null, twilioStreamSid || null]);
+    const dbSessionId = result.rows[0].id;
+    
+    console.log('createSession - Created session with ID:', dbSessionId);
+    return dbSessionId;
+  } catch (error) {
+    console.error('Error creating session:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateSessionStatus(sessionId: number, status: 'active' | 'ended' | 'failed'): Promise<void> {
+  const client = await pool.connect();
+  try {
+    console.log('updateSessionStatus - Updating session:', { sessionId, status });
+    
+    const query = `
+      UPDATE sessions 
+      SET status = $1, ended_at = CASE WHEN $1 = 'ended' THEN CURRENT_TIMESTAMP ELSE ended_at END
+      WHERE id = $2
+    `;
+    
+    await client.query(query, [status, sessionId]);
+    console.log('updateSessionStatus - Updated session status:', { sessionId, status });
+  } catch (error) {
+    console.error('Error updating session status:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getAllSessions(): Promise<any[]> {
+  const client = await pool.connect();
+  try {
+    console.log('getAllSessions - Getting all sessions');
+    
+    const query = `
+      SELECT 
+        s.*,
+        ac.name as agent_name,
+        ac.config_title,
+        COUNT(cm.id) as message_count
+      FROM sessions s
+      LEFT JOIN agent_configs ac ON s.config_id = ac.id
+      LEFT JOIN conversation_messages cm ON s.id = cm.session_id
+      GROUP BY s.id, s.session_id, s.config_id, s.twilio_stream_sid, s.status, s.started_at, s.ended_at, ac.name, ac.config_title
+      ORDER BY s.started_at DESC
+    `;
+    
+    const result = await client.query(query);
+    console.log('getAllSessions - Found', result.rows.length, 'sessions');
+    
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting all sessions:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getSessionWithMessages(sessionId: number): Promise<any> {
+  const client = await pool.connect();
+  try {
+    console.log('getSessionWithMessages - Getting session with messages:', sessionId);
+    
+    // Get session info
+    const sessionQuery = 'SELECT * FROM sessions WHERE id = $1';
+    const sessionResult = await client.query(sessionQuery, [sessionId]);
+    
+    if (sessionResult.rows.length === 0) {
+      throw new Error(`Session with id ${sessionId} not found`);
+    }
+    
+    const session = sessionResult.rows[0];
+    
+    // Get messages
+    const messages = await getConversationMessages(sessionId);
+    
+    return {
+      ...session,
+      messages: messages
+    };
+  } catch (error) {
+    console.error('Error getting session with messages:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // Tool Configuration Functions
 export async function getToolConfigurations(toolName?: string) {
   const client = await pool.connect();

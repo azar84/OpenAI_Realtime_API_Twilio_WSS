@@ -26,7 +26,13 @@ import {
   getLanguages,
   getToolConfigurations,
   updateToolConfiguration,
-  getToolConfigurationsAsObject
+  getToolConfigurationsAsObject,
+  saveConversationMessage,
+  getConversationMessages,
+  getSessionWithMessages,
+  getAllSessions,
+  createSession,
+  updateSessionStatus
 } from "./db";
 import { getEphemeralKey } from "./ephemeral";
 import agentInstructions from "./agent-instructions";
@@ -343,11 +349,113 @@ app.post("/api/function-call", (async (req, res) => {
 
 let currentCall: WebSocket | null = null;
 let currentLogs: WebSocket | null = null;
+let currentWebRTC: WebSocket | null = null;
 
 // Function to broadcast to logs WebSocket
 function broadcastToLogs(message: any) {
   if (currentLogs && currentLogs.readyState === WebSocket.OPEN) {
     currentLogs.send(JSON.stringify(message));
+  }
+}
+
+// Function to handle WebRTC connection
+function handleWebRTCConnection(ws: WebSocket) {
+  console.log("🔌 WebRTC WebSocket connected");
+  
+  ws.on("message", async (data: Buffer) => {
+    try {
+      const message = JSON.parse(data.toString());
+      console.log("📨 WebRTC message received:", message.type);
+      
+      switch (message.type) {
+        case "transcript":
+          await handleWebRTCTranscript(message);
+          break;
+        case "session_start":
+          await handleWebRTCSessionStart(message);
+          break;
+        case "session_end":
+          await handleWebRTCSessionEnd(message);
+          break;
+        default:
+          console.log("🔍 Unknown WebRTC message type:", message.type);
+      }
+    } catch (error) {
+      console.error("❌ Error processing WebRTC message:", error);
+    }
+  });
+  
+  ws.on("close", () => {
+    console.log("🔌 WebRTC WebSocket disconnected");
+    if (currentWebRTC === ws) {
+      currentWebRTC = null;
+    }
+  });
+  
+  ws.on("error", (error) => {
+    console.error("❌ WebRTC WebSocket error:", error);
+  });
+}
+
+// Handle WebRTC transcript messages
+async function handleWebRTCTranscript(message: any) {
+  try {
+    const { sessionId, text, isUser, metadata } = message;
+    
+    if (!sessionId) {
+      console.error("❌ No session ID provided for WebRTC transcript");
+      return;
+    }
+    
+    console.log("📝 Saving WebRTC transcript:", { 
+      sessionId, 
+      text: text.substring(0, 50) + '...', 
+      isUser 
+    });
+    
+    const messageId = await saveConversationMessage(
+      sessionId,
+      isUser ? 'user' : 'assistant',
+      text,
+      undefined, // streamSid
+      { ...metadata, source: 'webrtc' },
+      undefined, // audioDurationMs
+      false  // isAudio
+    );
+    
+    console.log("✅ Saved WebRTC message:", messageId);
+  } catch (error) {
+    console.error("❌ Error saving WebRTC transcript:", error);
+  }
+}
+
+// Handle WebRTC session start
+async function handleWebRTCSessionStart(message: any) {
+  try {
+    const { sessionId, configId } = message;
+    
+    console.log("🚀 WebRTC session started:", { sessionId, configId });
+    
+    // Session should already be created by frontend, just log it
+    console.log("✅ WebRTC session active:", sessionId);
+  } catch (error) {
+    console.error("❌ Error handling WebRTC session start:", error);
+  }
+}
+
+// Handle WebRTC session end
+async function handleWebRTCSessionEnd(message: any) {
+  try {
+    const { sessionId } = message;
+    
+    console.log("🏁 WebRTC session ended:", sessionId);
+    
+    if (sessionId) {
+      await updateSessionStatus(sessionId, 'ended');
+      console.log("✅ Updated WebRTC session status to ended");
+    }
+  } catch (error) {
+    console.error("❌ Error handling WebRTC session end:", error);
   }
 }
 
@@ -375,6 +483,10 @@ wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
       if (currentLogs) currentLogs.close();
       currentLogs = ws;
       handleFrontendConnection(currentLogs);
+    } else if (type === "webrtc") {
+      if (currentWebRTC) currentWebRTC.close();
+      currentWebRTC = ws;
+      handleWebRTCConnection(currentWebRTC);
     } else {
       ws.close();
     }
@@ -398,6 +510,73 @@ process.on('SIGINT', () => {
     console.log('Server closed');
     process.exit(0);
   });
+});
+
+// Sessions endpoints
+app.get('/api/sessions', async (req, res) => {
+  try {
+    const sessions = await getAllSessions();
+    res.json(sessions);
+  } catch (error) {
+    console.error('Error getting sessions:', error);
+    res.status(500).json({ error: 'Failed to get sessions' });
+  }
+});
+
+app.post('/api/sessions', async (req, res) => {
+  try {
+    const { session_id, config_id, twilio_stream_sid } = req.body;
+    const dbSessionId = await createSession(session_id, config_id, twilio_stream_sid);
+    res.json({ id: dbSessionId, success: true });
+  } catch (error) {
+    console.error('Error creating session:', error);
+    res.status(500).json({ error: 'Failed to create session' });
+  }
+});
+
+// Conversation Messages endpoints
+app.get('/api/sessions/:id/messages', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const messages = await getConversationMessages(sessionId);
+    res.json(messages);
+  } catch (error) {
+    console.error('Error getting conversation messages:', error);
+    res.status(500).json({ error: 'Failed to get conversation messages' });
+  }
+});
+
+app.get('/api/sessions/:id', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const sessionWithMessages = await getSessionWithMessages(sessionId);
+    res.json(sessionWithMessages);
+  } catch (error) {
+    console.error('Error getting session with messages:', error);
+    res.status(500).json({ error: 'Failed to get session with messages' });
+  }
+});
+
+app.post('/api/sessions/:id/messages', async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const { messageType, content, streamSid, metadata, audioDurationMs, isAudio } = req.body;
+    
+    const messageId = await saveConversationMessage(
+      sessionId,
+      messageType,
+      content,
+      streamSid,
+      metadata,
+      audioDurationMs,
+      isAudio || false
+    );
+    
+    res.json({ id: messageId, success: true });
+  } catch (error) {
+    console.error('Error saving conversation message:', error);
+    res.status(500).json({ error: 'Failed to save conversation message' });
+  }
 });
 
 process.on('SIGTERM', () => {

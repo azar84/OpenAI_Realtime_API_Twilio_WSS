@@ -27,6 +27,12 @@ exports.activateAgentConfig = activateAgentConfig;
 exports.createPersonalityOption = createPersonalityOption;
 exports.updatePersonalityOption = updatePersonalityOption;
 exports.deletePersonalityOption = deletePersonalityOption;
+exports.saveConversationMessage = saveConversationMessage;
+exports.getConversationMessages = getConversationMessages;
+exports.createSession = createSession;
+exports.updateSessionStatus = updateSessionStatus;
+exports.getAllSessions = getAllSessions;
+exports.getSessionWithMessages = getSessionWithMessages;
 exports.getToolConfigurations = getToolConfigurations;
 exports.updateToolConfiguration = updateToolConfiguration;
 exports.getToolConfiguration = getToolConfiguration;
@@ -549,6 +555,7 @@ function updateAgentConfig(id, configData) {
         try {
             console.log('updateAgentConfig - ID:', id);
             console.log('updateAgentConfig - Config Data:', configData);
+            console.log('updateAgentConfig - Config Data keys:', Object.keys(configData));
             // Simple update query - only update fields that are provided
             const updateFields = [];
             const values = [];
@@ -710,7 +717,10 @@ function updateAgentConfig(id, configData) {
                 paramCount++;
             }
             if (updateFields.length === 0) {
-                throw new Error('No fields to update');
+                console.log('updateAgentConfig - No fields to update, received data:', configData);
+                console.log('updateAgentConfig - Available fields in configData:', Object.keys(configData));
+                // Instead of throwing an error, just update the timestamp
+                console.log('updateAgentConfig - No valid fields to update, only updating timestamp');
             }
             // Add updated_at and id
             updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
@@ -721,6 +731,8 @@ function updateAgentConfig(id, configData) {
       WHERE id = $${paramCount}
       RETURNING *
     `;
+            console.log('updateAgentConfig - Final updateFields:', updateFields);
+            console.log('updateAgentConfig - Final values:', values);
             console.log('updateAgentConfig - Query:', query);
             console.log('updateAgentConfig - Values:', values);
             const result = yield client.query(query, values);
@@ -744,11 +756,32 @@ function deleteAgentConfig(id) {
     return __awaiter(this, void 0, void 0, function* () {
         const client = yield pool.connect();
         try {
+            console.log('deleteAgentConfig - Attempting to delete config with ID:', id);
+            // First check if there are any sessions using this config
+            const sessionCheckQuery = 'SELECT COUNT(*) as session_count FROM sessions WHERE config_id = $1';
+            const sessionResult = yield client.query(sessionCheckQuery, [id]);
+            const sessionCount = parseInt(sessionResult.rows[0].session_count);
+            console.log('deleteAgentConfig - Found', sessionCount, 'sessions using this config');
+            if (sessionCount > 0) {
+                console.log('deleteAgentConfig - Deleting', sessionCount, 'sessions that reference this config');
+                // Delete all sessions that reference this config
+                const deleteSessionsQuery = 'DELETE FROM sessions WHERE config_id = $1';
+                yield client.query(deleteSessionsQuery, [id]);
+                console.log('deleteAgentConfig - Successfully deleted', sessionCount, 'sessions');
+            }
             const query = 'DELETE FROM agent_configs WHERE id = $1';
             const result = yield client.query(query, [id]);
+            console.log('deleteAgentConfig - Delete result rowCount:', result.rowCount);
             if (result.rowCount === 0) {
                 throw new Error(`Configuration with id ${id} not found`);
             }
+            console.log('deleteAgentConfig - Successfully deleted config with ID:', id);
+        }
+        catch (error) {
+            console.error('deleteAgentConfig - Error deleting config:', error);
+            console.error('deleteAgentConfig - Error message:', error instanceof Error ? error.message : 'Unknown error');
+            console.error('deleteAgentConfig - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+            throw error;
         }
         finally {
             client.release();
@@ -831,6 +864,164 @@ function deletePersonalityOption(id) {
         }
         catch (error) {
             console.error('Error deleting personality option:', error);
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    });
+}
+// Conversation Messages Functions
+function saveConversationMessage(sessionId_1, messageType_1, content_1, streamSid_1, metadata_1, audioDurationMs_1) {
+    return __awaiter(this, arguments, void 0, function* (sessionId, messageType, content, streamSid, metadata, audioDurationMs, isAudio = false) {
+        const client = yield pool.connect();
+        try {
+            console.log('saveConversationMessage - Saving message:', {
+                sessionId,
+                messageType,
+                content: content.substring(0, 100) + '...',
+                streamSid,
+                isAudio,
+                audioDurationMs
+            });
+            const query = `
+      SELECT save_conversation_message($1, $2, $3, $4, $5, $6, $7)
+    `;
+            const result = yield client.query(query, [
+                sessionId,
+                messageType,
+                content,
+                streamSid || null,
+                JSON.stringify(metadata || {}),
+                audioDurationMs || null,
+                isAudio
+            ]);
+            const messageId = result.rows[0].save_conversation_message;
+            console.log('saveConversationMessage - Saved message with ID:', messageId);
+            return messageId;
+        }
+        catch (error) {
+            console.error('Error saving conversation message:', error);
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    });
+}
+function getConversationMessages(sessionId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const client = yield pool.connect();
+        try {
+            console.log('getConversationMessages - Getting messages for session:', sessionId);
+            const query = 'SELECT * FROM get_conversation_messages($1)';
+            const result = yield client.query(query, [sessionId]);
+            console.log('getConversationMessages - Found', result.rows.length, 'messages');
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting conversation messages:', error);
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    });
+}
+function createSession(sessionId, configId, twilioStreamSid) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const client = yield pool.connect();
+        try {
+            console.log('createSession - Creating session:', { sessionId, configId, twilioStreamSid });
+            const query = `
+      INSERT INTO sessions (session_id, config_id, twilio_stream_sid, status)
+      VALUES ($1, $2, $3, 'active')
+      RETURNING id
+    `;
+            const result = yield client.query(query, [sessionId, configId || null, twilioStreamSid || null]);
+            const dbSessionId = result.rows[0].id;
+            console.log('createSession - Created session with ID:', dbSessionId);
+            return dbSessionId;
+        }
+        catch (error) {
+            console.error('Error creating session:', error);
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    });
+}
+function updateSessionStatus(sessionId, status) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const client = yield pool.connect();
+        try {
+            console.log('updateSessionStatus - Updating session:', { sessionId, status });
+            const query = `
+      UPDATE sessions 
+      SET status = $1, ended_at = CASE WHEN $1 = 'ended' THEN CURRENT_TIMESTAMP ELSE ended_at END
+      WHERE id = $2
+    `;
+            yield client.query(query, [status, sessionId]);
+            console.log('updateSessionStatus - Updated session status:', { sessionId, status });
+        }
+        catch (error) {
+            console.error('Error updating session status:', error);
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    });
+}
+function getAllSessions() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const client = yield pool.connect();
+        try {
+            console.log('getAllSessions - Getting all sessions');
+            const query = `
+      SELECT 
+        s.*,
+        ac.name as agent_name,
+        ac.config_title,
+        COUNT(cm.id) as message_count
+      FROM sessions s
+      LEFT JOIN agent_configs ac ON s.config_id = ac.id
+      LEFT JOIN conversation_messages cm ON s.id = cm.session_id
+      GROUP BY s.id, s.session_id, s.config_id, s.twilio_stream_sid, s.status, s.started_at, s.ended_at, ac.name, ac.config_title
+      ORDER BY s.started_at DESC
+    `;
+            const result = yield client.query(query);
+            console.log('getAllSessions - Found', result.rows.length, 'sessions');
+            return result.rows;
+        }
+        catch (error) {
+            console.error('Error getting all sessions:', error);
+            throw error;
+        }
+        finally {
+            client.release();
+        }
+    });
+}
+function getSessionWithMessages(sessionId) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const client = yield pool.connect();
+        try {
+            console.log('getSessionWithMessages - Getting session with messages:', sessionId);
+            // Get session info
+            const sessionQuery = 'SELECT * FROM sessions WHERE id = $1';
+            const sessionResult = yield client.query(sessionQuery, [sessionId]);
+            if (sessionResult.rows.length === 0) {
+                throw new Error(`Session with id ${sessionId} not found`);
+            }
+            const session = sessionResult.rows[0];
+            // Get messages
+            const messages = yield getConversationMessages(sessionId);
+            return Object.assign(Object.assign({}, session), { messages: messages });
+        }
+        catch (error) {
+            console.error('Error getting session with messages:', error);
             throw error;
         }
         finally {

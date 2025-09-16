@@ -53,6 +53,7 @@ function handleCallConnection(ws, openAIApiKey) {
     session.responseStartTimestamp = undefined;
     session.latestMediaTimestamp = undefined;
     session.saved_config = undefined;
+    session.dbSessionId = undefined;
     ws.on("message", handleTwilioMessage);
     ws.on("error", ws.close);
     ws.on("close", () => {
@@ -121,6 +122,8 @@ function handleTwilioMessage(data) {
             session.latestMediaTimestamp = 0;
             session.lastAssistantItem = undefined;
             session.responseStartTimestamp = undefined;
+            // Create database session for this call
+            createDatabaseSession(msg.start.streamSid).catch(console.error);
             tryConnectModel().catch(console.error);
             break;
         case "media":
@@ -133,6 +136,10 @@ function handleTwilioMessage(data) {
             }
             break;
         case "close":
+            // Update session status to ended
+            if (session.dbSessionId) {
+                (0, db_1.updateSessionStatus)(session.dbSessionId, 'ended').catch(console.error);
+            }
             closeAllConnections();
             break;
     }
@@ -227,6 +234,68 @@ function tryConnectModel() {
         session.modelConn.on("close", closeModel);
     });
 }
+function createDatabaseSession(streamSid) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            // Get the active agent configuration
+            const agentConfig = yield (0, db_1.getActiveAgentConfig)();
+            const configId = agentConfig === null || agentConfig === void 0 ? void 0 : agentConfig.id;
+            // Create a unique session ID
+            const sessionId = `twilio-${streamSid}-${Date.now()}`;
+            // Create the database session
+            const dbSessionId = yield (0, db_1.createSession)(sessionId, configId, streamSid);
+            session.dbSessionId = dbSessionId;
+            console.log('📝 Created database session:', { sessionId, dbSessionId, configId });
+        }
+        catch (error) {
+            console.error('❌ Error creating database session:', error);
+        }
+    });
+}
+function saveUserMessage(item) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e;
+        try {
+            if (!session.dbSessionId)
+                return;
+            // Extract text content from the message
+            const content = ((_b = (_a = item.content) === null || _a === void 0 ? void 0 : _a.find((c) => c.type === "input_text")) === null || _b === void 0 ? void 0 : _b.text) ||
+                ((_d = (_c = item.content) === null || _c === void 0 ? void 0 : _c.find((c) => c.type === "text")) === null || _d === void 0 ? void 0 : _d.text) ||
+                JSON.stringify(item.content);
+            yield (0, db_1.saveConversationMessage)(session.dbSessionId, 'user', content, session.streamSid, {
+                item_id: item.id,
+                role: item.role,
+                content_type: (_e = item.content) === null || _e === void 0 ? void 0 : _e.map((c) => c.type).join(', ')
+            }, undefined, false);
+            console.log('💾 Saved user message to database:', { content: content.substring(0, 50) + '...' });
+        }
+        catch (error) {
+            console.error('❌ Error saving user message:', error);
+        }
+    });
+}
+function saveAssistantMessage(item) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c, _d, _e;
+        try {
+            if (!session.dbSessionId)
+                return;
+            // Extract text content from the message
+            const content = ((_b = (_a = item.content) === null || _a === void 0 ? void 0 : _a.find((c) => c.type === "text")) === null || _b === void 0 ? void 0 : _b.text) ||
+                ((_d = (_c = item.content) === null || _c === void 0 ? void 0 : _c.find((c) => c.type === "output_text")) === null || _d === void 0 ? void 0 : _d.text) ||
+                JSON.stringify(item.content);
+            yield (0, db_1.saveConversationMessage)(session.dbSessionId, 'assistant', content, session.streamSid, {
+                item_id: item.id,
+                role: item.role,
+                content_type: (_e = item.content) === null || _e === void 0 ? void 0 : _e.map((c) => c.type).join(', ')
+            }, undefined, false);
+            console.log('💾 Saved assistant message to database:', { content: content.substring(0, 50) + '...' });
+        }
+        catch (error) {
+            console.error('❌ Error saving assistant message:', error);
+        }
+    });
+}
 function handleModelMessage(data) {
     const event = parseMessage(data);
     if (!event)
@@ -254,8 +323,18 @@ function handleModelMessage(data) {
                 });
             }
             break;
+        case "conversation.item.created":
+            // Save user messages to database
+            if (event.item && event.item.role === "user" && session.dbSessionId) {
+                saveUserMessage(event.item).catch(console.error);
+            }
+            break;
         case "response.output_item.done": {
             const { item } = event;
+            // Save assistant messages to database
+            if (item && item.role === "assistant" && session.dbSessionId) {
+                saveAssistantMessage(item).catch(console.error);
+            }
             if (item.type === "function_call") {
                 handleFunctionCall(item)
                     .then((output) => {

@@ -385,6 +385,52 @@ process.on('SIGINT', () => {
         process.exit(0);
     });
 });
+// Sessions endpoints
+app.get('/api/sessions', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const sessions = yield (0, db_1.getAllSessions)();
+        res.json(sessions);
+    }
+    catch (error) {
+        console.error('Error getting sessions:', error);
+        res.status(500).json({ error: 'Failed to get sessions' });
+    }
+}));
+// Conversation Messages endpoints
+app.get('/api/sessions/:id/messages', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const sessionId = parseInt(req.params.id);
+        const messages = yield (0, db_1.getConversationMessages)(sessionId);
+        res.json(messages);
+    }
+    catch (error) {
+        console.error('Error getting conversation messages:', error);
+        res.status(500).json({ error: 'Failed to get conversation messages' });
+    }
+}));
+app.get('/api/sessions/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const sessionId = parseInt(req.params.id);
+        const sessionWithMessages = yield (0, db_1.getSessionWithMessages)(sessionId);
+        res.json(sessionWithMessages);
+    }
+    catch (error) {
+        console.error('Error getting session with messages:', error);
+        res.status(500).json({ error: 'Failed to get session with messages' });
+    }
+}));
+app.post('/api/sessions/:id/messages', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const sessionId = parseInt(req.params.id);
+        const { messageType, content, streamSid, metadata, audioDurationMs, isAudio } = req.body;
+        const messageId = yield (0, db_1.saveConversationMessage)(sessionId, messageType, content, streamSid, metadata, audioDurationMs, isAudio || false);
+        res.json({ id: messageId, success: true });
+    }
+    catch (error) {
+        console.error('Error saving conversation message:', error);
+        res.status(500).json({ error: 'Failed to save conversation message' });
+    }
+}));
 process.on('SIGTERM', () => {
     console.log('Shutting down server...');
     server.close(() => {

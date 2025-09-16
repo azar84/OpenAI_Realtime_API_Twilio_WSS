@@ -122,14 +122,15 @@ const meetingSchedulingTool = {
         name: 'schedule_meeting',
         type: 'function',
         description: `Use this tool to schedule a meeting with a customer. The tool is managed by another 
-    AI agent who will ask you some questions to finalzie the booking. 
-    Do not confirm the booking until you receive confirmation and meeting detailsfrom the other agent.
-     Start by the desired time and date and time zone or city , then consult the tool about availability,
-     the time zone shall be in widnows format.
-     After finding availability 
-    inform the user and get other details like name , email , any notes for the meeting , 
-    phone numebr , company name . Once you have the meeting details on the conformation then inform the
-    customer that meeting was booked and email will be sent with the details.`,
+    AI agent who will ask you some questions to finalzie the booking. Follow those steps:
+    1. First ask the user for the desired time and date and time zone or city , then consult the tool about availability
+    2. After finding availability inform the user and get other details like name , email , any notes for the meeting 
+    3. Call the tool again and provide all information needed to book the meeting  
+    4. You need to understand the response provided by the tool and provide any missing infomation 
+    to the tool , or confirm the correctiness of information.
+    5. You should receive confirmation that meeting was booked, don't make your assumption about conformaiton 
+    just wait for the tool agent to confirm to you. 
+`,
         parameters: {
             type: 'object',
             required: ['query'],
