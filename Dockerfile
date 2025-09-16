@@ -35,9 +35,9 @@ RUN npm install -g typescript
 RUN npm run build
 RUN npm prune --production && npm uninstall -g typescript
 
-# Build Next.js webapp
+# Skip Next.js build for now - will run in dev mode
 WORKDIR /app/webapp
-RUN npm run build
+# RUN npm run build
 
 # Create production image
 FROM node:18-alpine AS production
@@ -63,10 +63,7 @@ RUN mkdir -p /var/lib/postgresql/data \
 COPY --from=base /app/websocket-server/dist ./websocket-server/dist
 COPY --from=base /app/websocket-server/node_modules ./websocket-server/node_modules
 COPY --from=base /app/websocket-server/package.json ./websocket-server/
-COPY --from=base /app/webapp/.next ./webapp/.next
-COPY --from=base /app/webapp/public ./webapp/public
-COPY --from=base /app/webapp/node_modules ./webapp/node_modules
-COPY --from=base /app/webapp/package.json ./webapp/
+COPY --from=base /app/webapp ./webapp
 COPY --from=base /app/database ./database
 
 # Copy configuration files
