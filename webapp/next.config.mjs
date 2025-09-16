@@ -1,9 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    // Ensure path resolution works correctly
-    appDir: true,
-  },
-};
+const nextConfig = {};
 
 export default nextConfig;
