@@ -52,6 +52,9 @@ RUN apk add --no-cache \
     nginx \
     && rm -rf /var/cache/apk/*
 
+# Set working directory
+WORKDIR /app
+
 # Create directories
 RUN mkdir -p /var/lib/postgresql/data \
     && mkdir -p /var/log/supervisor \
