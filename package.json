@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "vercel-build": "cd webapp && pwd && ls -la && npm install && npm run build"
+    "vercel-build": "cd webapp && npm install && npm run build"
   },
   "dependencies": {
     "pg": "^8.16.3",
